@@ -13,9 +13,9 @@ export const GROUP_COLORS = [
 export type GroupColor = (typeof GROUP_COLORS)[number]
 
 export interface ExtensionSettings {
-  schemaVersion: 1
+  schemaVersion: 2
   autoGroupEnabled: boolean
-  groupSingleTabDomains: boolean
+  minTabsPerGroup: number
 }
 
 export interface TabTitleOverride {
@@ -94,8 +94,19 @@ export interface WorkspaceSnapshot {
 
 export interface AutoGroupResult {
   groupedTabs: number
+  ungroupedTabs: number
+  movedTabs: number
   createdGroups: number
   reusedGroups: number
+}
+
+export interface MultiWindowGroupResult extends AutoGroupResult {
+  processedWindows: number
+}
+
+export interface UngroupAllResult {
+  processedWindows: number
+  ungroupedTabs: number
 }
 
 export type RuntimeRequest =
@@ -107,6 +118,8 @@ export type RuntimeRequest =
   | { type: 'SETTINGS_GET' }
   | { type: 'SETTINGS_UPDATE'; settings: Partial<ExtensionSettings> }
   | { type: 'GROUP_AUTO'; windowId: number; force?: boolean }
+  | { type: 'GROUP_AUTO_ALL' }
+  | { type: 'GROUP_UNGROUP_ALL' }
   | { type: 'GROUP_MOVE'; tabId: number; groupId: number }
   | {
       type: 'GROUP_CREATE'

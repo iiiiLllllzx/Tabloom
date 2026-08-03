@@ -1,4 +1,12 @@
-import { History, RefreshCw, RotateCcw, Search, Sparkles, Tags } from 'lucide-react'
+import {
+  History,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  Sparkles,
+  Tags,
+  Unlink,
+} from 'lucide-react'
 import type { ExtensionSettings, WindowSummary } from '../types'
 
 interface ManagerToolbarProps {
@@ -12,6 +20,8 @@ interface ManagerToolbarProps {
   onWindowChange: (windowId: number) => void
   onQueryChange: (query: string) => void
   onAutoGroup: () => void
+  onUngroupAll: () => void
+  onThresholdChange: (value: number) => void
   onUndo: () => void
   onRestore: () => void
   onRefresh: () => void
@@ -29,6 +39,8 @@ export function ManagerToolbar({
   onWindowChange,
   onQueryChange,
   onAutoGroup,
+  onUngroupAll,
+  onThresholdChange,
   onUndo,
   onRestore,
   onRefresh,
@@ -67,6 +79,19 @@ export function ManagerToolbar({
         />
       </label>
 
+      <label className="threshold-picker">
+        <span>阈值</span>
+        <input
+          type="number"
+          min="2"
+          max="20"
+          value={settings?.minTabsPerGroup ?? 3}
+          disabled={!settings || busy}
+          onChange={(event) => onThresholdChange(Number(event.target.value))}
+          aria-label="分组阈值"
+        />
+      </label>
+
       <button className="toolbar-button" onClick={onRefresh} disabled={busy}>
         <RefreshCw size={16} /> 刷新
       </button>
@@ -88,6 +113,9 @@ export function ManagerToolbar({
       </button>
       <button className="toolbar-button primary" onClick={onAutoGroup} disabled={busy}>
         <Sparkles size={16} /> 按域名整理
+      </button>
+      <button className="toolbar-button danger" onClick={onUngroupAll} disabled={busy}>
+        <Unlink size={16} /> 取消分组
       </button>
 
       <label className="toolbar-switch">

@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Check, Info } from 'lucide-react'
 import { sendRequest } from '../lib/runtime'
 import type {
-  AutoGroupResult,
   ExtensionSettings,
   GroupColor,
+  MultiWindowGroupResult,
   TabCard,
+  UngroupAllResult,
   WorkspaceSnapshot,
 } from '../types'
 import { GroupColumn } from './GroupColumn'
@@ -151,22 +152,54 @@ export function ManagerApp() {
     if (!workspace) return
     setBusy(true)
     try {
-      const result = await sendRequest<AutoGroupResult>({
-        type: 'GROUP_AUTO',
-        windowId: workspace.selectedWindowId,
+      const result = await sendRequest<MultiWindowGroupResult>({
+        type: 'GROUP_AUTO_ALL',
       })
       await loadWorkspace(workspace.selectedWindowId, false)
       setNotice({
         tone: 'success',
-        text: result.groupedTabs
-          ? `已整理 ${result.groupedTabs} 个标签，创建 ${result.createdGroups} 个分组。`
-          : '当前窗口没有需要整理的未分组标签。',
+        text:
+          result.groupedTabs || result.ungroupedTabs || result.movedTabs
+            ? `已整理 ${result.processedWindows} 个窗口，创建 ${result.createdGroups} 个分组。`
+            : '所有窗口已经符合当前阈值规则。',
       })
     } catch (error) {
       setNotice({ tone: 'error', text: (error as Error).message })
     } finally {
       setBusy(false)
     }
+  }
+
+  async function ungroupAll(): Promise<void> {
+    if (!workspace) return
+    setBusy(true)
+    try {
+      const result = await sendRequest<UngroupAllResult>({
+        type: 'GROUP_UNGROUP_ALL',
+      })
+      setSettings((current) =>
+        current ? { ...current, autoGroupEnabled: false } : current,
+      )
+      await loadWorkspace(workspace.selectedWindowId, false)
+      setNotice({
+        tone: 'success',
+        text: result.ungroupedTabs
+          ? `已取消 ${result.processedWindows} 个窗口中的 ${result.ungroupedTabs} 个标签分组。`
+          : '所有窗口当前都没有标签组。',
+      })
+    } catch (error) {
+      setNotice({ tone: 'error', text: (error as Error).message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function updateThreshold(value: number): Promise<void> {
+    const updated = await sendRequest<ExtensionSettings>({
+      type: 'SETTINGS_UPDATE',
+      settings: { minTabsPerGroup: value },
+    })
+    setSettings(updated)
   }
 
   async function toggleAutoGroup(): Promise<void> {
@@ -193,6 +226,8 @@ export function ManagerApp() {
         onWindowChange={(windowId) => void loadWorkspace(windowId)}
         onQueryChange={setQuery}
         onAutoGroup={() => void autoGroup()}
+        onUngroupAll={() => void ungroupAll()}
+        onThresholdChange={(value) => void updateThreshold(value)}
         onUndo={() =>
           void runAction(
             () =>
@@ -231,7 +266,7 @@ export function ManagerApp() {
           </strong>
         </div>
         <p>
-          Chrome 原生标签组仅存在于单个窗口内。自动整理保留已有分组，手工拖拽结果优先。
+          一次整理会处理所有普通窗口；不足阈值的域名标签保持未分组并移到窗口最右侧。
         </p>
       </section>
 

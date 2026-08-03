@@ -52,7 +52,7 @@ describe('域名服务', () => {
         { id: 6, url: 'chrome://settings', groupId: -1 },
       ],
       preferences,
-      { force: false, includeSingleTabs: true },
+      { force: false },
     )
 
     expect(buckets).toEqual([
@@ -65,7 +65,7 @@ describe('域名服务', () => {
     ])
   })
 
-  it('强制整理时忽略手工偏好，并可排除单标签域名', () => {
+  it('强制整理时忽略手工偏好并保留所有域名桶', () => {
     const buckets = buildDomainBuckets(
       [
         { id: 1, url: 'https://one.example.com', groupId: -1 },
@@ -75,10 +75,16 @@ describe('域名服务', () => {
       {
         '2': { tabId: 2, mode: 'keep-ungrouped', updatedAt: 1 },
       },
-      { force: true, includeSingleTabs: false },
+      { force: true },
     )
 
     expect(buckets).toEqual([
+      {
+        key: 'one-example',
+        title: 'one-example',
+        hostnames: ['one.example.com'],
+        tabIds: [1],
+      },
       {
         key: 'pair-example',
         title: 'pair-example',
@@ -95,7 +101,7 @@ describe('域名服务', () => {
         { id: 2, url: 'https://ml.bytedance.com/webshell', groupId: -1 },
       ],
       {},
-      { force: false, includeSingleTabs: true },
+      { force: false },
     )
 
     expect(buckets).toEqual([

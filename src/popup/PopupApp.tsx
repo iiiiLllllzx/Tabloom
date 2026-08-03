@@ -8,13 +8,15 @@ import {
   RotateCcw,
   Sparkles,
   Tags,
+  Unlink,
 } from 'lucide-react'
 import { extractHostname, isRestrictedUrl } from '../lib/domain'
 import { sendRequest } from '../lib/runtime'
 import type {
-  AutoGroupResult,
   ExtensionSettings,
+  MultiWindowGroupResult,
   TabTitleOverride,
+  UngroupAllResult,
 } from '../types'
 
 type Notice = { tone: 'success' | 'error'; text: string }
@@ -81,24 +83,53 @@ export function PopupApp() {
   }
 
   async function autoGroup(): Promise<void> {
-    if (tab?.windowId === undefined) return
     setBusy(true)
     try {
-      const result = await sendRequest<AutoGroupResult>({
-        type: 'GROUP_AUTO',
-        windowId: tab.windowId,
+      const result = await sendRequest<MultiWindowGroupResult>({
+        type: 'GROUP_AUTO_ALL',
       })
       setNotice({
         tone: 'success',
-        text: result.groupedTabs
-          ? `已整理 ${result.groupedTabs} 个标签页`
-          : '没有需要整理的未分组标签',
+        text:
+          result.groupedTabs || result.ungroupedTabs || result.movedTabs
+            ? `已整理 ${result.processedWindows} 个窗口`
+            : '所有窗口已经符合当前阈值规则',
       })
     } catch (error) {
       setNotice({ tone: 'error', text: (error as Error).message })
     } finally {
       setBusy(false)
     }
+  }
+
+  async function ungroupAll(): Promise<void> {
+    setBusy(true)
+    try {
+      const result = await sendRequest<UngroupAllResult>({
+        type: 'GROUP_UNGROUP_ALL',
+      })
+      setSettings((current) =>
+        current ? { ...current, autoGroupEnabled: false } : current,
+      )
+      setNotice({
+        tone: 'success',
+        text: result.ungroupedTabs
+          ? `已取消 ${result.ungroupedTabs} 个标签的分组`
+          : '所有窗口当前都没有标签组',
+      })
+    } catch (error) {
+      setNotice({ tone: 'error', text: (error as Error).message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function updateThreshold(value: number): Promise<void> {
+    const updated = await sendRequest<ExtensionSettings>({
+      type: 'SETTINGS_UPDATE',
+      settings: { minTabsPerGroup: value },
+    })
+    setSettings(updated)
   }
 
   async function toggleAutoGroup(): Promise<void> {
@@ -174,14 +205,30 @@ export function PopupApp() {
       <section className="organize-card">
         <div>
           <span className="eyebrow">AUTO GROUP</span>
-          <strong>按域名整理当前窗口</strong>
-          <p>已有分组和固定标签不会被改动。</p>
+          <strong>按域名整理所有窗口</strong>
+          <p>不足阈值的标签会移到各窗口最右侧。</p>
         </div>
         <button className="square-button" onClick={() => void autoGroup()} disabled={busy}>
           <Sparkles size={18} />
           <span className="sr-only">立即整理</span>
         </button>
       </section>
+
+      <label className="threshold-row">
+        <span>
+          分组阈值
+          <small>同域名标签达到此数量才分组</small>
+        </span>
+        <input
+          type="number"
+          min="2"
+          max="20"
+          value={settings?.minTabsPerGroup ?? 3}
+          disabled={!settings || busy}
+          onChange={(event) => void updateThreshold(Number(event.target.value))}
+          aria-label="分组阈值"
+        />
+      </label>
 
       <label className="switch-row">
         <span>
@@ -195,6 +242,14 @@ export function PopupApp() {
           disabled={!settings}
         />
       </label>
+
+      <button
+        className="ungroup-button"
+        onClick={() => void ungroupAll()}
+        disabled={busy}
+      >
+        <Unlink size={15} /> 取消所有窗口分组
+      </button>
 
       {notice && (
         <p className={`notice ${notice.tone}`}>

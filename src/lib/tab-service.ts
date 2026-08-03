@@ -12,12 +12,15 @@ import {
   getSettings,
   getTitleOverrides,
   setManualPreference,
+  updateSettings,
 } from './storage'
 import type {
   AutoGroupResult,
   GroupColor,
   GroupColumn,
+  MultiWindowGroupResult,
   TabCard,
+  UngroupAllResult,
   WindowSummary,
   WorkspaceSnapshot,
 } from '../types'
@@ -39,9 +42,18 @@ export async function autoGroupWindow(
   const automaticGroupIds = findAutomaticGroupIds(tabs, groups, effectivePreferences)
   const buckets = buildDomainBuckets(tabs, effectivePreferences, {
     force,
-    includeSingleTabs: settings.groupSingleTabDomains,
     automaticGroupIds,
   })
+  const groupedBuckets = buckets.filter(
+    (bucket) => bucket.tabIds.length >= settings.minTabsPerGroup,
+  )
+  const rightSideTabIds = buckets
+    .filter((bucket) => bucket.tabIds.length < settings.minTabsPerGroup)
+    .flatMap((bucket) => bucket.tabIds)
+  const rightSideIdSet = new Set(rightSideTabIds)
+  const rightSideIdsInCurrentOrder = tabs.flatMap((tab) =>
+    tab.id !== undefined && rightSideIdSet.has(tab.id) ? [tab.id] : [],
+  )
   const reusableGroups = new Map<string, number>()
   for (const groupId of automaticGroupIds) {
     const firstTab = tabs.find((tab) => tab.groupId === groupId)
@@ -51,7 +63,7 @@ export async function autoGroupWindow(
     }
   }
 
-  const needsChanges = buckets.some((bucket) => {
+  const groupChangesNeeded = groupedBuckets.some((bucket) => {
     const reusableGroupId = reusableGroups.get(bucket.key)
     const reusableGroup = groups.find((group) => group.id === reusableGroupId)
     const expectedColor = colorForKey(bucket.key)
@@ -64,6 +76,18 @@ export async function autoGroupWindow(
       )
     )
   })
+  const groupedRightSideTabIds = rightSideIdsInCurrentOrder.filter(
+    (tabId) => tabs.find((tab) => tab.id === tabId)?.groupId !== UNGROUPED_ID,
+  )
+  const currentTailIds = tabs
+    .slice(Math.max(0, tabs.length - rightSideIdsInCurrentOrder.length))
+    .flatMap((tab) => (tab.id === undefined ? [] : [tab.id]))
+  const rightSideMoveNeeded =
+    rightSideIdsInCurrentOrder.length > 0 &&
+    (currentTailIds.length !== rightSideIdsInCurrentOrder.length ||
+      currentTailIds.some((tabId, index) => tabId !== rightSideIdsInCurrentOrder[index]))
+  const needsChanges =
+    groupChangesNeeded || groupedRightSideTabIds.length > 0 || rightSideMoveNeeded
   if (needsChanges) {
     await saveUndoPoint(windowId)
     if (force) {
@@ -76,8 +100,10 @@ export async function autoGroupWindow(
   let createdGroups = 0
   let reusedGroups = 0
   let groupedTabs = 0
+  let ungroupedTabs = 0
+  let movedTabs = 0
 
-  for (const bucket of buckets) {
+  for (const bucket of groupedBuckets) {
     const reusableGroupId = reusableGroups.get(bucket.key)
     if (reusableGroupId !== undefined) {
       const reusableGroup = groups.find((group) => group.id === reusableGroupId)
@@ -115,7 +141,79 @@ export async function autoGroupWindow(
     groupedTabs += bucket.tabIds.length
   }
 
-  return { groupedTabs, createdGroups, reusedGroups }
+  if (groupedRightSideTabIds.length > 0) {
+    await chrome.tabs.ungroup(
+      groupedRightSideTabIds as [number, ...number[]],
+    )
+    ungroupedTabs = groupedRightSideTabIds.length
+  }
+  if (rightSideMoveNeeded) {
+    await chrome.tabs.move(
+      rightSideIdsInCurrentOrder as [number, ...number[]],
+      { index: -1 },
+    )
+    movedTabs = rightSideIdsInCurrentOrder.length
+  }
+
+  return {
+    groupedTabs,
+    ungroupedTabs,
+    movedTabs,
+    createdGroups,
+    reusedGroups,
+  }
+}
+
+async function getNormalWindowIds(): Promise<number[]> {
+  const windows = await chrome.windows.getAll()
+  return windows.flatMap((window) =>
+    window.id !== undefined && (window.type === undefined || window.type === 'normal')
+      ? [window.id]
+      : [],
+  )
+}
+
+export async function autoGroupAllWindows(): Promise<MultiWindowGroupResult> {
+  const windowIds = await getNormalWindowIds()
+  const result: MultiWindowGroupResult = {
+    processedWindows: windowIds.length,
+    groupedTabs: 0,
+    ungroupedTabs: 0,
+    movedTabs: 0,
+    createdGroups: 0,
+    reusedGroups: 0,
+  }
+  for (const windowId of windowIds) {
+    const windowResult = await autoGroupWindow(windowId)
+    result.groupedTabs += windowResult.groupedTabs
+    result.ungroupedTabs += windowResult.ungroupedTabs
+    result.movedTabs += windowResult.movedTabs
+    result.createdGroups += windowResult.createdGroups
+    result.reusedGroups += windowResult.reusedGroups
+  }
+  return result
+}
+
+export async function ungroupAllWindows(): Promise<UngroupAllResult> {
+  const windowIds = await getNormalWindowIds()
+  let ungroupedTabs = 0
+  for (const windowId of windowIds) {
+    const tabs = await chrome.tabs.query({ windowId })
+    const groupedTabIds = tabs.flatMap((tab) =>
+      tab.id !== undefined && tab.groupId !== UNGROUPED_ID ? [tab.id] : [],
+    )
+    if (groupedTabIds.length > 0) {
+      await saveUndoPoint(windowId)
+    }
+    await clearManualPreferences(
+      tabs.flatMap((tab) => (tab.id === undefined ? [] : [tab.id])),
+    )
+    if (groupedTabIds.length === 0) continue
+    await chrome.tabs.ungroup(groupedTabIds as [number, ...number[]])
+    ungroupedTabs += groupedTabIds.length
+  }
+  await updateSettings({ autoGroupEnabled: false })
+  return { processedWindows: windowIds.length, ungroupedTabs }
 }
 
 function findAutomaticGroupIds(

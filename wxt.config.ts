@@ -6,7 +6,7 @@ export default defineConfig({
     name: 'Tabloom',
     short_name: 'Tabloom',
     description: '重命名标签页，并按域名自动或手工整理 Chrome 标签组。',
-    version: '1.1.0',
+    version: '1.2.0',
     minimum_chrome_version: '102',
     permissions: ['tabs', 'tabGroups', 'storage', 'contextMenus'],
     host_permissions: ['<all_urls>'],

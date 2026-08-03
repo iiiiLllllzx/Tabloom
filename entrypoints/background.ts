@@ -7,10 +7,12 @@ import {
   updateSettings,
 } from '../src/lib/storage'
 import {
+  autoGroupAllWindows,
   autoGroupWindow,
   createGroupWithTab,
   getWorkspace,
   moveTabToGroup,
+  ungroupAllWindows,
   ungroupTab,
 } from '../src/lib/tab-service'
 import {
@@ -100,6 +102,10 @@ async function handleRequest(
         return success(await updateSettings(request.settings))
       case 'GROUP_AUTO':
         return success(await autoGroupWindow(request.windowId, request.force))
+      case 'GROUP_AUTO_ALL':
+        return success(await autoGroupAllWindows())
+      case 'GROUP_UNGROUP_ALL':
+        return success(await ungroupAllWindows())
       case 'GROUP_MOVE':
         await moveTabToGroup(request.tabId, request.groupId)
         return success()

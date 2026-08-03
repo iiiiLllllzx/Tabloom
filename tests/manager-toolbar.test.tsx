@@ -4,15 +4,17 @@ import { ManagerToolbar } from '../src/manager/ManagerToolbar'
 function renderToolbar(options: { canUndo: boolean; canRestore: boolean }) {
   const onUndo = vi.fn()
   const onRestore = vi.fn()
+  const onUngroupAll = vi.fn()
+  const onThresholdChange = vi.fn()
   render(
     <ManagerToolbar
       windows={[{ id: 1, focused: true, tabCount: 8 }]}
       selectedWindowId={1}
       query=""
       settings={{
-        schemaVersion: 1,
+        schemaVersion: 2,
         autoGroupEnabled: true,
-        groupSingleTabDomains: true,
+        minTabsPerGroup: 3,
       }}
       busy={false}
       canUndo={options.canUndo}
@@ -20,13 +22,15 @@ function renderToolbar(options: { canUndo: boolean; canRestore: boolean }) {
       onWindowChange={vi.fn()}
       onQueryChange={vi.fn()}
       onAutoGroup={vi.fn()}
+      onUngroupAll={onUngroupAll}
+      onThresholdChange={onThresholdChange}
       onUndo={onUndo}
       onRestore={onRestore}
       onRefresh={vi.fn()}
       onToggleAutoGroup={vi.fn()}
     />,
   )
-  return { onUndo, onRestore }
+  return { onUndo, onRestore, onUngroupAll, onThresholdChange }
 }
 
 describe('工作台历史按钮', () => {
@@ -45,5 +49,18 @@ describe('工作台历史按钮', () => {
     fireEvent.click(screen.getByRole('button', { name: '恢复分组' }))
     expect(onUndo).toHaveBeenCalledOnce()
     expect(onRestore).toHaveBeenCalledOnce()
+  })
+
+  it('可以修改阈值和取消全部分组', () => {
+    const { onUngroupAll, onThresholdChange } = renderToolbar({
+      canUndo: true,
+      canRestore: true,
+    })
+    fireEvent.change(screen.getByLabelText('分组阈值'), {
+      target: { value: '5' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '取消分组' }))
+    expect(onThresholdChange).toHaveBeenCalledWith(5)
+    expect(onUngroupAll).toHaveBeenCalledOnce()
   })
 })

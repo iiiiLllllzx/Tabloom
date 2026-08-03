@@ -14,26 +14,43 @@ const GROUP_HISTORY_KEY = 'groupHistory'
 const MAX_UNDO_STEPS = 20
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   autoGroupEnabled: true,
-  groupSingleTabDomains: true,
+  minTabsPerGroup: 3,
 }
 
 export async function getSettings(): Promise<ExtensionSettings> {
   const stored = await chrome.storage.local.get(SETTINGS_KEY)
+  const saved = stored[SETTINGS_KEY] as Partial<ExtensionSettings> | undefined
   return {
     ...DEFAULT_SETTINGS,
-    ...(stored[SETTINGS_KEY] as Partial<ExtensionSettings> | undefined),
-    schemaVersion: 1,
+    ...saved,
+    minTabsPerGroup: normalizeGroupThreshold(saved?.minTabsPerGroup),
+    schemaVersion: 2,
   }
 }
 
 export async function updateSettings(
   changes: Partial<ExtensionSettings>,
 ): Promise<ExtensionSettings> {
-  const settings = { ...(await getSettings()), ...changes, schemaVersion: 1 as const }
+  const current = await getSettings()
+  const settings = {
+    ...current,
+    ...changes,
+    minTabsPerGroup: normalizeGroupThreshold(
+      changes.minTabsPerGroup ?? current.minTabsPerGroup,
+    ),
+    schemaVersion: 2 as const,
+  }
   await chrome.storage.local.set({ [SETTINGS_KEY]: settings })
   return settings
+}
+
+export function normalizeGroupThreshold(value: number | undefined): number {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_SETTINGS.minTabsPerGroup
+  }
+  return Math.min(20, Math.max(2, Math.round(value!)))
 }
 
 export async function getTitleOverrides(): Promise<Record<string, TabTitleOverride>> {

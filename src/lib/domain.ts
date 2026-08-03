@@ -70,7 +70,6 @@ export function buildDomainBuckets(
   manualPreferences: Record<string, ManualTabPreference>,
   options: {
     force: boolean
-    includeSingleTabs: boolean
     automaticGroupIds?: ReadonlySet<number>
   },
 ): DomainBucket[] {
@@ -102,7 +101,6 @@ export function buildDomainBuckets(
   }
 
   return [...buckets.entries()]
-    .filter(([, bucket]) => options.includeSingleTabs || bucket.tabIds.length > 1)
     .map(([key, bucket]) => ({
       key,
       title: key,
