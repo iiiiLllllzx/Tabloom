@@ -1,0 +1,60 @@
+AGENTS.md
+  s_84f24e647fba58::t_184276b3efb2c0 54 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a704d6740a251232959d58e","tool_type":"agent","tool_id":"apply_patch","line_ranges":[{"Single":54}]}]}
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "935256d67ea64f2201d12448e45fdc286fafe64a",
+  "prompts": {},
+  "sessions": {
+    "s_84f24e647fba58": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a70397440a251232959c2d0",
+        "model": "gpt-5.6-sol__max"
+      },
+      "human_author": "lizixin.1220 <lizixin.1220@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {
+    "AGENTS.md": [
+      {
+        "hash": "s_84f24e647fba58::t_184276b3efb2c0",
+        "line_ranges": [
+          {
+            "Single": 54
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a704d6740a251232959d58e",
+            "tool_type": "agent",
+            "tool_id": "apply_patch",
+            "line_ranges": [
+              {
+                "Single": 54
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "remote_transcripts": {
+    "s_84f24e647fba58": {
+      "tool": "trae",
+      "conversation_id": "6a70397440a251232959c2d0",
+      "session_id": "6a70397440a251232959c2d0",
+      "status": "remote_only",
+      "message": "Remote transcript resolution is not implemented yet for TRAE prompts."
+    },
+    "s_84f24e647fba58::t_184276b3efb2c0": {
+      "tool": "trae",
+      "conversation_id": "6a70397440a251232959c2d0",
+      "session_id": "6a70397440a251232959c2d0",
+      "status": "remote_only",
+      "message": "Remote transcript resolution is not implemented yet for TRAE prompts."
+    }
+  }
+}
