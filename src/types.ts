@@ -1,0 +1,120 @@
+export const GROUP_COLORS = [
+  'grey',
+  'blue',
+  'red',
+  'yellow',
+  'green',
+  'pink',
+  'purple',
+  'cyan',
+  'orange',
+] as const
+
+export type GroupColor = (typeof GROUP_COLORS)[number]
+
+export interface ExtensionSettings {
+  schemaVersion: 1
+  autoGroupEnabled: boolean
+  groupSingleTabDomains: boolean
+}
+
+export interface TabTitleOverride {
+  tabId: number
+  title: string
+  updatedAt: number
+}
+
+export type ManualPreferenceMode = 'manual-group' | 'keep-ungrouped'
+
+export interface ManualTabPreference {
+  tabId: number
+  mode: ManualPreferenceMode
+  updatedAt: number
+}
+
+export interface TabCard {
+  id: number
+  windowId: number
+  groupId: number
+  title: string
+  url?: string
+  hostname?: string
+  favIconUrl?: string
+  active: boolean
+  pinned: boolean
+  customTitle?: string
+}
+
+export interface GroupColumn {
+  id: number | 'ungrouped'
+  windowId: number
+  title: string
+  color: GroupColor | 'neutral'
+  collapsed: boolean
+  tabs: TabCard[]
+}
+
+export interface WindowSummary {
+  id: number
+  focused: boolean
+  tabCount: number
+}
+
+export interface WorkspaceSnapshot {
+  selectedWindowId: number
+  windows: WindowSummary[]
+  columns: GroupColumn[]
+}
+
+export interface AutoGroupResult {
+  groupedTabs: number
+  createdGroups: number
+  reusedGroups: number
+}
+
+export type RuntimeRequest =
+  | { type: 'TITLE_CONTENT_READY' }
+  | { type: 'TITLE_GET'; tabId: number }
+  | { type: 'TITLE_SET'; tabId?: number; title: string }
+  | { type: 'TITLE_CLEAR'; tabId: number }
+  | { type: 'TITLE_PROMPT'; tabId?: number }
+  | { type: 'SETTINGS_GET' }
+  | { type: 'SETTINGS_UPDATE'; settings: Partial<ExtensionSettings> }
+  | { type: 'GROUP_AUTO'; windowId: number; force?: boolean }
+  | { type: 'GROUP_MOVE'; tabId: number; groupId: number }
+  | {
+      type: 'GROUP_CREATE'
+      tabId: number
+      windowId: number
+      title: string
+      color: GroupColor
+    }
+  | { type: 'GROUP_UNGROUP'; tabId: number }
+  | {
+      type: 'GROUP_UPDATE'
+      groupId: number
+      changes: { title?: string; color?: GroupColor; collapsed?: boolean }
+    }
+  | { type: 'WORKSPACE_GET'; windowId?: number }
+  | { type: 'TAB_ACTIVATE'; tabId: number; windowId: number }
+  | { type: 'TAB_CLOSE'; tabId: number }
+
+export type ContentRequest =
+  | { type: 'CONTENT_APPLY_TITLE'; title: string }
+  | { type: 'CONTENT_CLEAR_TITLE' }
+  | { type: 'CONTENT_PROMPT_TITLE'; initialValue: string }
+
+export type ErrorCode =
+  | 'RESTRICTED_PAGE'
+  | 'TAB_NOT_FOUND'
+  | 'INVALID_URL'
+  | 'CHROME_API_ERROR'
+
+export interface RuntimeResponse<T = unknown> {
+  ok: boolean
+  data?: T
+  error?: {
+    code: ErrorCode
+    message: string
+  }
+}
