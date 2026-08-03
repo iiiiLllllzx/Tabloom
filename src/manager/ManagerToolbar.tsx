@@ -1,4 +1,4 @@
-import { RefreshCw, Search, Sparkles, Tags } from 'lucide-react'
+import { History, RefreshCw, RotateCcw, Search, Sparkles, Tags } from 'lucide-react'
 import type { ExtensionSettings, WindowSummary } from '../types'
 
 interface ManagerToolbarProps {
@@ -7,9 +7,13 @@ interface ManagerToolbarProps {
   query: string
   settings?: ExtensionSettings
   busy: boolean
+  canUndo: boolean
+  canRestore: boolean
   onWindowChange: (windowId: number) => void
   onQueryChange: (query: string) => void
   onAutoGroup: () => void
+  onUndo: () => void
+  onRestore: () => void
   onRefresh: () => void
   onToggleAutoGroup: () => void
 }
@@ -20,9 +24,13 @@ export function ManagerToolbar({
   query,
   settings,
   busy,
+  canUndo,
+  canRestore,
   onWindowChange,
   onQueryChange,
   onAutoGroup,
+  onUndo,
+  onRestore,
   onRefresh,
   onToggleAutoGroup,
 }: ManagerToolbarProps) {
@@ -61,6 +69,22 @@ export function ManagerToolbar({
 
       <button className="toolbar-button" onClick={onRefresh} disabled={busy}>
         <RefreshCw size={16} /> 刷新
+      </button>
+      <button
+        className="toolbar-button"
+        onClick={onUndo}
+        disabled={busy || !canUndo}
+        title="撤销上一次分组操作"
+      >
+        <RotateCcw size={16} /> 撤销
+      </button>
+      <button
+        className="toolbar-button"
+        onClick={onRestore}
+        disabled={busy || !canRestore}
+        title="恢复到 Tabloom 首次修改前的分组"
+      >
+        <History size={16} /> 恢复分组
       </button>
       <button className="toolbar-button primary" onClick={onAutoGroup} disabled={busy}>
         <Sparkles size={16} /> 按域名整理

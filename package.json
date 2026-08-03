@@ -1,7 +1,7 @@
 {
   "name": "merlin-tab-manager",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "重命名标签页并按域名管理 Chrome 标签组",
   "type": "module",
   "scripts": {

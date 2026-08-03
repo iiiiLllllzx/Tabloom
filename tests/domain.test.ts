@@ -1,4 +1,11 @@
-import { buildDomainBuckets, extractHostname, isRestrictedUrl } from '../src/lib/domain'
+import {
+  buildDomainBuckets,
+  extractHostname,
+  getDomainGroupKey,
+  getDomainGroupTitle,
+  isLikelyDomainGroupTitle,
+  isRestrictedUrl,
+} from '../src/lib/domain'
 import type { ManualTabPreference } from '../src/types'
 
 describe('域名服务', () => {
@@ -15,6 +22,21 @@ describe('域名服务', () => {
       expect(isRestrictedUrl(url)).toBe(true)
     },
   )
+
+  it('使用域名前两段生成简短分组名', () => {
+    expect(getDomainGroupTitle('https://ml.bytedance.net/workbench')).toBe(
+      'ml-bytedance',
+    )
+    expect(getDomainGroupTitle('https://code.byted.org/project')).toBe('code-byted')
+    expect(getDomainGroupKey('www.github.com')).toBe('github-com')
+  })
+
+  it('识别旧版完整域名组和过短域名组', () => {
+    expect(isLikelyDomainGroupTitle('ml.bytedance.net', 'ml.bytedance.net')).toBe(true)
+    expect(isLikelyDomainGroupTitle('bytedance', 'ml.bytedance.net')).toBe(true)
+    expect(isLikelyDomainGroupTitle('ml-bytedance', 'ml.bytedance.net')).toBe(true)
+    expect(isLikelyDomainGroupTitle('训练任务', 'ml.bytedance.net')).toBe(false)
+  })
 
   it('仅收集未分组、非固定且无手工偏好的标签', () => {
     const preferences: Record<string, ManualTabPreference> = {
@@ -34,7 +56,12 @@ describe('域名服务', () => {
     )
 
     expect(buckets).toEqual([
-      { hostname: 'merlin.example.com', tabIds: [1, 2] },
+      {
+        key: 'merlin-example',
+        title: 'merlin-example',
+        hostnames: ['merlin.example.com'],
+        tabIds: [1, 2],
+      },
     ])
   })
 
@@ -52,7 +79,32 @@ describe('域名服务', () => {
     )
 
     expect(buckets).toEqual([
-      { hostname: 'pair.example.com', tabIds: [2, 3] },
+      {
+        key: 'pair-example',
+        title: 'pair-example',
+        hostnames: ['pair.example.com'],
+        tabIds: [2, 3],
+      },
+    ])
+  })
+
+  it('将相同前两段但不同后缀的域名合并', () => {
+    const buckets = buildDomainBuckets(
+      [
+        { id: 1, url: 'https://ml.bytedance.net/workbench', groupId: -1 },
+        { id: 2, url: 'https://ml.bytedance.com/webshell', groupId: -1 },
+      ],
+      {},
+      { force: false, includeSingleTabs: true },
+    )
+
+    expect(buckets).toEqual([
+      {
+        key: 'ml-bytedance',
+        title: 'ml-bytedance',
+        hostnames: ['ml.bytedance.com', 'ml.bytedance.net'],
+        tabIds: [1, 2],
+      },
     ])
   })
 })

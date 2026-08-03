@@ -188,9 +188,31 @@ export function ManagerApp() {
         query={query}
         settings={settings}
         busy={busy}
+        canUndo={workspace?.history.canUndo ?? false}
+        canRestore={workspace?.history.canRestore ?? false}
         onWindowChange={(windowId) => void loadWorkspace(windowId)}
         onQueryChange={setQuery}
         onAutoGroup={() => void autoGroup()}
+        onUndo={() =>
+          void runAction(
+            () =>
+              sendRequest({
+                type: 'GROUP_UNDO',
+                windowId: workspace!.selectedWindowId,
+              }),
+            '已撤销上一次分组操作',
+          )
+        }
+        onRestore={() =>
+          void runAction(
+            () =>
+              sendRequest({
+                type: 'GROUP_RESTORE',
+                windowId: workspace!.selectedWindowId,
+              }),
+            '已恢复 Tabloom 修改前的分组',
+          )
+        }
         onRefresh={() => void loadWorkspace(workspace?.selectedWindowId)}
         onToggleAutoGroup={() => void toggleAutoGroup()}
       />

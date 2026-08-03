@@ -67,7 +67,7 @@ select:focus-visible {
   z-index: 10;
   top: 0;
   display: grid;
-  grid-template-columns: auto minmax(180px, 240px) minmax(190px, 1fr) auto auto auto;
+  grid-template-columns: auto minmax(180px, 240px) minmax(190px, 1fr) repeat(4, auto) auto;
   gap: 12px;
   align-items: center;
   min-height: 72px;
@@ -175,6 +175,7 @@ select:focus-visible {
   border-radius: 3px;
   font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .toolbar-button:hover {
@@ -692,16 +693,18 @@ select:focus-visible {
   }
 }
 
+@media (max-width: 1300px) {
+  .toolbar-button:first-of-type {
+    display: none;
+  }
+}
+
 @media (max-width: 1100px) {
   .manager-toolbar {
-    grid-template-columns: auto minmax(180px, 1fr) minmax(190px, 1fr) auto;
+    grid-template-columns: auto minmax(170px, 1fr) minmax(180px, 1fr) repeat(3, auto);
   }
 
   .toolbar-switch {
-    display: none;
-  }
-
-  .toolbar-button:first-of-type {
     display: none;
   }
 

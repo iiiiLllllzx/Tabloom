@@ -13,6 +13,10 @@ import {
   moveTabToGroup,
   ungroupTab,
 } from '../src/lib/tab-service'
+import {
+  restoreInitialGrouping,
+  undoGrouping,
+} from '../src/lib/group-history'
 import type { ContentRequest, ErrorCode, RuntimeRequest, RuntimeResponse } from '../src/types'
 
 const MENU_ID = 'tabloom-rename-current-tab'
@@ -110,6 +114,12 @@ async function handleRequest(
         )
       case 'GROUP_UNGROUP':
         await ungroupTab(request.tabId)
+        return success()
+      case 'GROUP_UNDO':
+        await undoGrouping(request.windowId)
+        return success()
+      case 'GROUP_RESTORE':
+        await restoreInitialGrouping(request.windowId)
         return success()
       case 'GROUP_UPDATE':
         await chrome.tabGroups.update(request.groupId, request.changes)

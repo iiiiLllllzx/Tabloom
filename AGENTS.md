@@ -10,7 +10,9 @@ Tabloom 是 Chrome Manifest V3 扩展。运行时无后端，Chrome API 是标�
 - 运行时代码不得依赖远程脚本、远程字体或外部服务。
 - 不扩大 Manifest 权限，新增权限必须同时更新技术架构和 README。
 - 自动分组只处理未分组标签，不得覆盖已有标签组、固定标签或手工覆盖标记。
+- 自动域名键取主机名前两段并用连字符连接，例如 `ml.bytedance.net → ml-bytedance`；旧版完整域名组需要兼容迁移。
 - Chrome 原生组不能空创建；自定义空组必须保留为工作台临时状态，首个标签拖入时再调用 `chrome.tabs.group`。
+- 所有会改变标签分组的操作必须先保存窗口快照，保证撤销和恢复初始分组可用。
 - 自定义标题按 `tabId` 存入 `chrome.storage.session`，不得改为 URL 级持久化。
 - 内容脚本只允许读取和修改 `<title>`，不得采集网页正文或表单数据。
 - UI 文案和项目文档使用中文；代码标识符使用英文。
@@ -21,6 +23,7 @@ Tabloom 是 Chrome Manifest V3 扩展。运行时无后端，Chrome API 是标�
 - `entrypoints/content.ts`：标题守护和页面内重命名输入。
 - `src/lib/domain.ts`：URL 校验与自动分组候选计算。
 - `src/lib/tab-service.ts`：Chrome 标签和标签组 API。
+- `src/lib/group-history.ts`：窗口分组快照、撤销与恢复。
 - `src/lib/storage.ts`：设置及会话状态。
 - `src/types.ts`：跨上下文消息和领域模型。
 - `src/popup/`：当前标签快速操作。

@@ -32,6 +32,31 @@ export interface ManualTabPreference {
   updatedAt: number
 }
 
+export interface SavedTabGroup {
+  title: string
+  color: GroupColor
+  collapsed: boolean
+  tabIds: number[]
+}
+
+export interface GroupingSnapshot {
+  windowId: number
+  createdAt: number
+  groups: SavedTabGroup[]
+  ungroupedTabIds: number[]
+  manualPreferences: Record<string, ManualTabPreference>
+}
+
+export interface GroupHistoryState {
+  baseline?: GroupingSnapshot
+  undoStack: GroupingSnapshot[]
+}
+
+export interface GroupHistoryStatus {
+  canUndo: boolean
+  canRestore: boolean
+}
+
 export interface TabCard {
   id: number
   windowId: number
@@ -64,6 +89,7 @@ export interface WorkspaceSnapshot {
   selectedWindowId: number
   windows: WindowSummary[]
   columns: GroupColumn[]
+  history: GroupHistoryStatus
 }
 
 export interface AutoGroupResult {
@@ -90,6 +116,8 @@ export type RuntimeRequest =
       color: GroupColor
     }
   | { type: 'GROUP_UNGROUP'; tabId: number }
+  | { type: 'GROUP_UNDO'; windowId: number }
+  | { type: 'GROUP_RESTORE'; windowId: number }
   | {
       type: 'GROUP_UPDATE'
       groupId: number

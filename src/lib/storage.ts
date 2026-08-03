@@ -1,5 +1,7 @@
 import type {
   ExtensionSettings,
+  GroupHistoryState,
+  GroupingSnapshot,
   ManualPreferenceMode,
   ManualTabPreference,
   TabTitleOverride,
@@ -8,6 +10,8 @@ import type {
 const SETTINGS_KEY = 'settings'
 const TITLE_OVERRIDES_KEY = 'titleOverrides'
 const MANUAL_PREFERENCES_KEY = 'manualPreferences'
+const GROUP_HISTORY_KEY = 'groupHistory'
+const MAX_UNDO_STEPS = 20
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
   schemaVersion: 1,
@@ -77,6 +81,50 @@ export async function clearManualPreferences(tabIds: number[]): Promise<void> {
     delete preferences[String(tabId)]
   }
   await chrome.storage.session.set({ [MANUAL_PREFERENCES_KEY]: preferences })
+}
+
+export async function restoreManualPreferences(
+  tabIds: number[],
+  restored: Record<string, ManualTabPreference>,
+): Promise<void> {
+  const preferences = await getManualPreferences()
+  for (const tabId of tabIds) {
+    delete preferences[String(tabId)]
+    const restoredPreference = restored[String(tabId)]
+    if (restoredPreference) {
+      preferences[String(tabId)] = restoredPreference
+    }
+  }
+  await chrome.storage.session.set({ [MANUAL_PREFERENCES_KEY]: preferences })
+}
+
+async function getAllGroupHistory(): Promise<Record<string, GroupHistoryState>> {
+  const stored = await chrome.storage.session.get(GROUP_HISTORY_KEY)
+  return (stored[GROUP_HISTORY_KEY] as Record<string, GroupHistoryState> | undefined) ?? {}
+}
+
+export async function getGroupHistory(windowId: number): Promise<GroupHistoryState> {
+  const history = await getAllGroupHistory()
+  return history[String(windowId)] ?? { undoStack: [] }
+}
+
+export async function recordGroupingSnapshot(snapshot: GroupingSnapshot): Promise<void> {
+  const allHistory = await getAllGroupHistory()
+  const current = allHistory[String(snapshot.windowId)] ?? { undoStack: [] }
+  allHistory[String(snapshot.windowId)] = {
+    baseline: current.baseline ?? snapshot,
+    undoStack: [...current.undoStack, snapshot].slice(-MAX_UNDO_STEPS),
+  }
+  await chrome.storage.session.set({ [GROUP_HISTORY_KEY]: allHistory })
+}
+
+export async function replaceGroupHistory(
+  windowId: number,
+  state: GroupHistoryState,
+): Promise<void> {
+  const allHistory = await getAllGroupHistory()
+  allHistory[String(windowId)] = state
+  await chrome.storage.session.set({ [GROUP_HISTORY_KEY]: allHistory })
 }
 
 export async function clearTabState(tabId: number): Promise<void> {
