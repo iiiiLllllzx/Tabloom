@@ -51,7 +51,7 @@ npm run check
 
 ## 远端协作
 
-- 唯一远端仓库：`git@github.com:iiiiLllllzx/Chrome-Tab-Manager.git`。
+- 唯一远端仓库：`git@github.com:iiiiLllllzx/Tabloom.git`（原仓库地址已由 GitHub 重定向）。
 - 默认分支：`main`。
 - 每次完成并验证功能更新后，需要创建提交并推送到 `origin/main`。
 - 禁止使用强制推送覆盖远端历史。
