@@ -1,4 +1,8 @@
-import { colorForKey, stableHash } from '../src/lib/colors'
+import {
+  buildContrastingColorPlan,
+  colorForKey,
+  stableHash,
+} from '../src/lib/colors'
 import { GROUP_COLORS } from '../src/types'
 
 describe('颜色映射', () => {
@@ -24,5 +28,39 @@ describe('颜色映射', () => {
       Array.from({ length: 30 }, (_, index) => colorForKey(`host-${index}.example.com`)),
     )
     expect(colors.size).toBeGreaterThan(3)
+  })
+
+  it('相邻分组按高对比顺序轮用全部九色', () => {
+    const keys = Array.from({ length: 18 }, (_, index) => `group-${index}`)
+    const plan = buildContrastingColorPlan(keys)
+    const colors = keys.map((key) => plan.get(key))
+    const lowContrastPairs = new Set([
+      'blue:cyan',
+      'cyan:blue',
+      'orange:yellow',
+      'yellow:orange',
+      'orange:red',
+      'red:orange',
+      'red:pink',
+      'pink:red',
+      'pink:purple',
+      'purple:pink',
+    ])
+
+    expect(new Set(colors.slice(0, GROUP_COLORS.length)).size).toBe(
+      GROUP_COLORS.length,
+    )
+    colors.slice(1).forEach((color, index) => {
+      const previous = colors[index]
+      expect(color).not.toBe(previous)
+      expect(lowContrastPairs).not.toContain(`${previous}:${color}`)
+    })
+  })
+
+  it('相同标签顺序生成稳定配色', () => {
+    const keys = ['first', 'second', 'third']
+    expect([...buildContrastingColorPlan(keys)]).toEqual([
+      ...buildContrastingColorPlan(keys),
+    ])
   })
 })

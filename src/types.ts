@@ -1,13 +1,13 @@
 export const GROUP_COLORS = [
-  'grey',
   'blue',
-  'red',
-  'yellow',
-  'green',
-  'pink',
-  'purple',
-  'cyan',
   'orange',
+  'green',
+  'purple',
+  'yellow',
+  'cyan',
+  'red',
+  'grey',
+  'pink',
 ] as const
 
 export type GroupColor = (typeof GROUP_COLORS)[number]

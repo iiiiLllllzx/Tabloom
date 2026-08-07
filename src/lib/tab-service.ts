@@ -1,4 +1,4 @@
-import { colorForKey } from './colors'
+import { buildContrastingColorPlan, colorForKey } from './colors'
 import {
   buildDomainBuckets,
   extractHostname,
@@ -44,8 +44,18 @@ export async function autoGroupWindow(
     force,
     automaticGroupIds,
   })
-  const groupedBuckets = buckets.filter(
-    (bucket) => bucket.tabIds.length >= settings.minTabsPerGroup,
+  const tabIndexById = new Map(
+    tabs.flatMap((tab) => (tab.id === undefined ? [] : [[tab.id, tab.index] as const])),
+  )
+  const groupedBuckets = buckets
+    .filter((bucket) => bucket.tabIds.length >= settings.minTabsPerGroup)
+    .sort((left, right) => {
+      const leftIndex = Math.min(...left.tabIds.map((tabId) => tabIndexById.get(tabId) ?? 0))
+      const rightIndex = Math.min(...right.tabIds.map((tabId) => tabIndexById.get(tabId) ?? 0))
+      return leftIndex - rightIndex
+    })
+  const colorPlan = buildContrastingColorPlan(
+    groupedBuckets.map((bucket) => bucket.key),
   )
   const rightSideTabIds = buckets
     .filter((bucket) => bucket.tabIds.length < settings.minTabsPerGroup)
@@ -66,7 +76,7 @@ export async function autoGroupWindow(
   const groupChangesNeeded = groupedBuckets.some((bucket) => {
     const reusableGroupId = reusableGroups.get(bucket.key)
     const reusableGroup = groups.find((group) => group.id === reusableGroupId)
-    const expectedColor = colorForKey(bucket.key)
+    const expectedColor = colorPlan.get(bucket.key) ?? colorForKey(bucket.key)
     return (
       reusableGroupId === undefined ||
       reusableGroup?.title !== bucket.title ||
@@ -110,7 +120,7 @@ export async function autoGroupWindow(
       const movedTabIds = bucket.tabIds.filter(
         (tabId) => tabs.find((tab) => tab.id === tabId)?.groupId !== reusableGroupId,
       )
-      const expectedColor = colorForKey(bucket.key)
+      const expectedColor = colorPlan.get(bucket.key) ?? colorForKey(bucket.key)
       const needsMetadataUpdate =
         reusableGroup?.title !== bucket.title || reusableGroup?.color !== expectedColor
       if (movedTabIds.length === 0 && !needsMetadataUpdate) {
@@ -133,7 +143,7 @@ export async function autoGroupWindow(
       const groupId = await chrome.tabs.group({ tabIds: bucket.tabIds })
       await chrome.tabGroups.update(groupId, {
         title: bucket.title,
-        color: colorForKey(bucket.key),
+        color: colorPlan.get(bucket.key) ?? colorForKey(bucket.key),
       })
       reusableGroups.set(bucket.key, groupId)
       createdGroups += 1
