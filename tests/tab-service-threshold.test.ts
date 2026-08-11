@@ -53,6 +53,49 @@ describe('多窗口阈值分组服务', () => {
     expect(result).toMatchObject({ groupedTabs: 0, ungroupedTabs: 2, movedTabs: 2 })
   })
 
+  it('关闭标签后即使自动整理关闭也会解散低于阈值的已有自动组', async () => {
+    const ungroup = vi.fn().mockResolvedValue(undefined)
+    const move = vi.fn().mockResolvedValue([])
+    vi.stubGlobal('chrome', {
+      tabGroups: {
+        TAB_GROUP_ID_NONE: -1,
+        query: vi.fn().mockResolvedValue([
+          { id: 8, title: 'ml-bytedance', color: 'blue', collapsed: false },
+        ]),
+      },
+      tabs: {
+        query: vi.fn().mockResolvedValue([
+          { id: 1, index: 0, windowId: 10, groupId: 8, url: 'https://ml.bytedance.net/a' },
+          { id: 2, index: 1, windowId: 10, groupId: 8, url: 'https://ml.bytedance.net/b' },
+        ]),
+        ungroup,
+        move,
+      },
+      storage: {
+        local: {
+          get: vi.fn().mockResolvedValue({
+            settings: {
+              schemaVersion: 2,
+              autoGroupEnabled: false,
+              minTabsPerGroup: 3,
+            },
+          }),
+        },
+        session: {
+          get: vi.fn().mockResolvedValue({}),
+          set: vi.fn().mockResolvedValue(undefined),
+        },
+      },
+    })
+
+    const { reconcileWindowAfterTabRemoved } = await import('../src/lib/tab-service')
+    const ungroupedCount = await reconcileWindowAfterTabRemoved(10)
+
+    expect(ungroup).toHaveBeenCalledWith([1, 2])
+    expect(move).toHaveBeenCalledWith([1, 2], { index: -1 })
+    expect(ungroupedCount).toBe(2)
+  })
+
   it('主动整理遍历所有普通窗口', async () => {
     vi.stubGlobal('chrome', {
       windows: {
@@ -92,6 +135,78 @@ describe('多窗口阈值分组服务', () => {
     expect(chrome.tabs.query).toHaveBeenCalledWith({ windowId: 2 })
     expect(chrome.tabs.query).not.toHaveBeenCalledWith({ windowId: 3 })
     expect(result.processedWindows).toBe(2)
+  })
+
+  it('相同域名在两个窗口分别建组且不会跨窗口合并', async () => {
+    const group = vi.fn().mockResolvedValueOnce(101).mockResolvedValueOnce(102)
+    const tabsByWindow = new Map([
+      [
+        1,
+        [1, 2, 3].map((id, index) => ({
+          id,
+          index,
+          windowId: 1,
+          groupId: -1,
+          url: `https://ml.bytedance.net/window-1/${id}`,
+        })),
+      ],
+      [
+        2,
+        [4, 5, 6].map((id, index) => ({
+          id,
+          index,
+          windowId: 2,
+          groupId: -1,
+          url: `https://ml.bytedance.net/window-2/${id}`,
+        })),
+      ],
+    ])
+    vi.stubGlobal('chrome', {
+      windows: {
+        getAll: vi.fn().mockResolvedValue([
+          { id: 1, type: 'normal' },
+          { id: 2, type: 'normal' },
+        ]),
+      },
+      tabGroups: {
+        TAB_GROUP_ID_NONE: -1,
+        query: vi.fn().mockResolvedValue([]),
+        update: vi.fn().mockResolvedValue(undefined),
+      },
+      tabs: {
+        query: vi.fn(({ windowId }: { windowId: number }) =>
+          Promise.resolve(tabsByWindow.get(windowId) ?? []),
+        ),
+        group,
+      },
+      storage: {
+        local: {
+          get: vi.fn().mockResolvedValue({
+            settings: {
+              schemaVersion: 2,
+              autoGroupEnabled: true,
+              minTabsPerGroup: 3,
+            },
+          }),
+        },
+        session: {
+          get: vi.fn().mockResolvedValue({}),
+          set: vi.fn().mockResolvedValue(undefined),
+        },
+      },
+    })
+
+    const { autoGroupAllWindows } = await import('../src/lib/tab-service')
+    await autoGroupAllWindows()
+
+    expect(group).toHaveBeenNthCalledWith(1, {
+      tabIds: [1, 2, 3],
+      createProperties: { windowId: 1 },
+    })
+    expect(group).toHaveBeenNthCalledWith(2, {
+      tabIds: [4, 5, 6],
+      createProperties: { windowId: 2 },
+    })
   })
 
   it('按照标签栏顺序为自动组分配相邻高对比色', async () => {
@@ -142,6 +257,14 @@ describe('多窗口阈值分组服务', () => {
     const plan = buildContrastingColorPlan(['gitee-com', 'code-byted'])
     await autoGroupWindow(10)
 
+    expect(group).toHaveBeenNthCalledWith(1, {
+      tabIds: [1, 2, 3],
+      createProperties: { windowId: 10 },
+    })
+    expect(group).toHaveBeenNthCalledWith(2, {
+      tabIds: [4, 5, 6],
+      createProperties: { windowId: 10 },
+    })
     expect(update).toHaveBeenNthCalledWith(1, 101, {
       title: 'gitee-com',
       color: plan.get('gitee-com'),

@@ -140,7 +140,10 @@ export async function autoGroupWindow(
       }
       reusedGroups += 1
     } else {
-      const groupId = await chrome.tabs.group({ tabIds: bucket.tabIds })
+      const groupId = await chrome.tabs.group({
+        tabIds: bucket.tabIds,
+        createProperties: { windowId },
+      })
       await chrome.tabGroups.update(groupId, {
         title: bucket.title,
         color: colorPlan.get(bucket.key) ?? colorForKey(bucket.key),
@@ -224,6 +227,37 @@ export async function ungroupAllWindows(): Promise<UngroupAllResult> {
   }
   await updateSettings({ autoGroupEnabled: false })
   return { processedWindows: windowIds.length, ungroupedTabs }
+}
+
+export async function reconcileWindowAfterTabRemoved(windowId: number): Promise<number> {
+  const [tabs, groups, preferences, settings] = await Promise.all([
+    chrome.tabs.query({ windowId }),
+    chrome.tabGroups.query({ windowId }),
+    getManualPreferences(),
+    getSettings(),
+  ])
+  const automaticGroupIds = findAutomaticGroupIds(tabs, groups, preferences)
+  const tabCountByGroup = new Map<number, number>()
+  for (const tab of tabs) {
+    if (automaticGroupIds.has(tab.groupId)) {
+      tabCountByGroup.set(tab.groupId, (tabCountByGroup.get(tab.groupId) ?? 0) + 1)
+    }
+  }
+  const tabIdsToUngroup = tabs.flatMap((tab) =>
+    tab.id !== undefined &&
+    automaticGroupIds.has(tab.groupId) &&
+    (tabCountByGroup.get(tab.groupId) ?? 0) < settings.minTabsPerGroup
+      ? [tab.id]
+      : [],
+  )
+  if (tabIdsToUngroup.length === 0) {
+    return 0
+  }
+
+  await saveUndoPoint(windowId)
+  await chrome.tabs.ungroup(tabIdsToUngroup as [number, ...number[]])
+  await chrome.tabs.move(tabIdsToUngroup as [number, ...number[]], { index: -1 })
+  return tabIdsToUngroup.length
 }
 
 function findAutomaticGroupIds(

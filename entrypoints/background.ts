@@ -1,5 +1,4 @@
 import {
-  clearTabState,
   clearTitleOverride,
   getSettings,
   getTitleOverride,
@@ -12,6 +11,7 @@ import {
   createGroupWithTab,
   getWorkspace,
   moveTabToGroup,
+  reconcileWindowAfterTabRemoved,
   ungroupAllWindows,
   ungroupTab,
 } from '../src/lib/tab-service'
@@ -19,6 +19,7 @@ import {
   restoreInitialGrouping,
   undoGrouping,
 } from '../src/lib/group-history'
+import { handleRemovedTab } from '../src/lib/tab-events'
 import type { ContentRequest, ErrorCode, RuntimeRequest, RuntimeResponse } from '../src/types'
 
 const MENU_ID = 'tabloom-rename-current-tab'
@@ -176,6 +177,26 @@ async function scheduleAutoGroup(windowId: number): Promise<void> {
   )
 }
 
+async function scheduleAfterTabRemoved(windowId: number): Promise<void> {
+  const settings = await getSettings()
+  if (settings.autoGroupEnabled) {
+    await scheduleAutoGroup(windowId)
+    return
+  }
+
+  const currentTimer = autoGroupTimers.get(windowId)
+  if (currentTimer) {
+    clearTimeout(currentTimer)
+  }
+  autoGroupTimers.set(
+    windowId,
+    setTimeout(() => {
+      autoGroupTimers.delete(windowId)
+      void reconcileWindowAfterTabRemoved(windowId).catch(() => undefined)
+    }, 450),
+  )
+}
+
 export default defineBackground(() => {
   chrome.runtime.onInstalled.addListener(() => {
     void ensureContextMenu()
@@ -209,7 +230,7 @@ export default defineBackground(() => {
       void scheduleAutoGroup(tab.windowId)
     }
   })
-  chrome.tabs.onRemoved.addListener((tabId) => {
-    void clearTabState(tabId)
+  chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+    void handleRemovedTab(tabId, removeInfo, scheduleAfterTabRemoved)
   })
 })
