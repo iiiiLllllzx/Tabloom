@@ -31,7 +31,7 @@ describe('多窗口阈值分组服务', () => {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 2,
+              schemaVersion: 3,
               autoGroupEnabled: true,
               minTabsPerGroup: 3,
             },
@@ -75,7 +75,7 @@ describe('多窗口阈值分组服务', () => {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 2,
+              schemaVersion: 3,
               autoGroupEnabled: false,
               minTabsPerGroup: 3,
             },
@@ -116,7 +116,7 @@ describe('多窗口阈值分组服务', () => {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 2,
+              schemaVersion: 3,
               autoGroupEnabled: true,
               minTabsPerGroup: 3,
             },
@@ -183,7 +183,7 @@ describe('多窗口阈值分组服务', () => {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 2,
+              schemaVersion: 3,
               autoGroupEnabled: true,
               minTabsPerGroup: 3,
             },
@@ -237,7 +237,7 @@ describe('多窗口阈值分组服务', () => {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 2,
+              schemaVersion: 3,
               autoGroupEnabled: true,
               minTabsPerGroup: 3,
             },
@@ -276,7 +276,7 @@ describe('多窗口阈值分组服务', () => {
     expect(plan.get('gitee-com')).not.toBe(plan.get('code-byted'))
   })
 
-  it('取消所有窗口分组并关闭自动整理', async () => {
+  it('取消所有窗口分组但保留自动整理设置', async () => {
     const ungroup = vi.fn().mockResolvedValue(undefined)
     const localSet = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('chrome', {
@@ -306,7 +306,7 @@ describe('多窗口阈值分组服务', () => {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 2,
+              schemaVersion: 3,
               autoGroupEnabled: true,
               minTabsPerGroup: 3,
             },
@@ -325,12 +325,6 @@ describe('多窗口阈值分组服务', () => {
 
     expect(ungroup).toHaveBeenCalledWith([1])
     expect(result).toEqual({ processedWindows: 2, ungroupedTabs: 1 })
-    expect(localSet).toHaveBeenCalledWith({
-      settings: {
-        schemaVersion: 2,
-        autoGroupEnabled: false,
-        minTabsPerGroup: 3,
-      },
-    })
+    expect(localSet).not.toHaveBeenCalled()
   })
 })

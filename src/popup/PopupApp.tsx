@@ -108,9 +108,6 @@ export function PopupApp() {
       const result = await sendRequest<UngroupAllResult>({
         type: 'GROUP_UNGROUP_ALL',
       })
-      setSettings((current) =>
-        current ? { ...current, autoGroupEnabled: false } : current,
-      )
       setNotice({
         tone: 'success',
         text: result.ungroupedTabs

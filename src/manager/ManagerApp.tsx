@@ -177,9 +177,6 @@ export function ManagerApp() {
       const result = await sendRequest<UngroupAllResult>({
         type: 'GROUP_UNGROUP_ALL',
       })
-      setSettings((current) =>
-        current ? { ...current, autoGroupEnabled: false } : current,
-      )
       await loadWorkspace(workspace.selectedWindowId, false)
       setNotice({
         tone: 'success',

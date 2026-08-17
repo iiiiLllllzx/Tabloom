@@ -12,7 +12,6 @@ import {
   getSettings,
   getTitleOverrides,
   setManualPreference,
-  updateSettings,
 } from './storage'
 import type {
   AutoGroupResult,
@@ -225,7 +224,6 @@ export async function ungroupAllWindows(): Promise<UngroupAllResult> {
     await chrome.tabs.ungroup(groupedTabIds as [number, ...number[]])
     ungroupedTabs += groupedTabIds.length
   }
-  await updateSettings({ autoGroupEnabled: false })
   return { processedWindows: windowIds.length, ungroupedTabs }
 }
 
