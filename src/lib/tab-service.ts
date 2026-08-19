@@ -25,10 +25,34 @@ import type {
 } from '../types'
 
 const UNGROUPED_ID = chrome.tabGroups.TAB_GROUP_ID_NONE
+const windowGroupingQueues = new Map<number, Promise<void>>()
 
 export async function autoGroupWindow(
   windowId: number,
   force = false,
+): Promise<AutoGroupResult> {
+  const previous = windowGroupingQueues.get(windowId) ?? Promise.resolve()
+  let releaseQueue!: () => void
+  const queueGate = new Promise<void>((resolve) => {
+    releaseQueue = resolve
+  })
+  const queueTail = previous.catch(() => undefined).then(() => queueGate)
+  windowGroupingQueues.set(windowId, queueTail)
+  await previous.catch(() => undefined)
+
+  try {
+    return await autoGroupWindowUnlocked(windowId, force)
+  } finally {
+    releaseQueue()
+    if (windowGroupingQueues.get(windowId) === queueTail) {
+      windowGroupingQueues.delete(windowId)
+    }
+  }
+}
+
+async function autoGroupWindowUnlocked(
+  windowId: number,
+  force: boolean,
 ): Promise<AutoGroupResult> {
   const [tabs, groups, preferences, settings] = await Promise.all([
     chrome.tabs.query({ windowId }),
@@ -65,7 +89,12 @@ export async function autoGroupWindow(
   )
   const reusableGroups = new Map<string, number>()
   for (const groupId of automaticGroupIds) {
-    const firstTab = tabs.find((tab) => tab.groupId === groupId)
+    const firstTab = tabs.find(
+      (tab) =>
+        tab.groupId === groupId &&
+        tab.id !== undefined &&
+        !effectivePreferences[String(tab.id)],
+    )
     const hostname = extractHostname(firstTab?.url)
     if (hostname && !reusableGroups.has(getDomainGroupKey(hostname))) {
       reusableGroups.set(getDomainGroupKey(hostname), groupId)
@@ -237,13 +266,18 @@ export async function reconcileWindowAfterTabRemoved(windowId: number): Promise<
   const automaticGroupIds = findAutomaticGroupIds(tabs, groups, preferences)
   const tabCountByGroup = new Map<number, number>()
   for (const tab of tabs) {
-    if (automaticGroupIds.has(tab.groupId)) {
+    if (
+      tab.id !== undefined &&
+      automaticGroupIds.has(tab.groupId) &&
+      !preferences[String(tab.id)]
+    ) {
       tabCountByGroup.set(tab.groupId, (tabCountByGroup.get(tab.groupId) ?? 0) + 1)
     }
   }
   const tabIdsToUngroup = tabs.flatMap((tab) =>
     tab.id !== undefined &&
     automaticGroupIds.has(tab.groupId) &&
+    !preferences[String(tab.id)] &&
     (tabCountByGroup.get(tab.groupId) ?? 0) < settings.minTabsPerGroup
       ? [tab.id]
       : [],
@@ -266,18 +300,18 @@ function findAutomaticGroupIds(
   const automaticGroupIds = new Set<number>()
   for (const group of groups) {
     const groupTabs = tabs.filter((tab) => tab.groupId === group.id)
-    if (
-      groupTabs.length === 0 ||
-      groupTabs.some((tab) => tab.id !== undefined && preferences[String(tab.id)])
-    ) {
+    const automaticTabs = groupTabs.filter(
+      (tab) => tab.id !== undefined && !preferences[String(tab.id)],
+    )
+    if (automaticTabs.length === 0) {
       continue
     }
-    const hostnames = groupTabs
+    const hostnames = automaticTabs
       .map((tab) => extractHostname(tab.url))
       .filter((hostname): hostname is string => hostname !== undefined)
     const keys = new Set(hostnames.map(getDomainGroupKey))
     if (
-      hostnames.length === groupTabs.length &&
+      hostnames.length === automaticTabs.length &&
       keys.size === 1 &&
       hostnames.some((hostname) => isLikelyDomainGroupTitle(group.title, hostname))
     ) {
