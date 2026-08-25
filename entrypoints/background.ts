@@ -23,6 +23,7 @@ import {
   ensureContentScript,
   sendToTabWithInjection,
 } from '../src/lib/content-messenger'
+import { requestTitleFromTab } from '../src/lib/title-prompt'
 import type { ContentRequest, ErrorCode, RuntimeRequest, RuntimeResponse } from '../src/types'
 
 const MENU_ID = 'tabloom-rename-current-tab'
@@ -65,10 +66,11 @@ async function promptTab(tabId?: number): Promise<void> {
     throw new Error('找不到当前标签页')
   }
   const override = await getTitleOverride(targetId)
-  await sendToTab(targetId, {
-    type: 'CONTENT_PROMPT_TITLE',
-    initialValue: override?.title ?? '',
-  })
+  const title = await requestTitleFromTab(targetId, override?.title ?? '')
+  if (title === null) return
+
+  await setTitleOverride(targetId, title)
+  await sendToTab(targetId, { type: 'CONTENT_APPLY_TITLE', title })
 }
 
 async function openSidePanel(windowId?: number): Promise<void> {
@@ -215,11 +217,11 @@ export default defineBackground(() => {
     }
   })
 
-  chrome.commands.onCommand.addListener((command) => {
+  chrome.commands.onCommand.addListener((command, tab) => {
     if (command === 'rename-current-tab') {
-      void promptTab().catch(() => undefined)
-    } else if (command === 'toggle-side-panel') {
-      void openSidePanel().catch(() => undefined)
+      void promptTab(tab?.id).catch(() => undefined)
+    } else if (command === 'open-window-switcher') {
+      void openSidePanel(tab?.windowId).catch(() => undefined)
     }
   })
 

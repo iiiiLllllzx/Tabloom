@@ -34,37 +34,6 @@ export default defineContentScript({
       }
     }
 
-    function promptForTitle(initialValue: string): void {
-      const nextTitle = window.prompt(
-        '为当前标签页设置一个容易识别的标题：',
-        initialValue || customTitle || document.title,
-      )
-      if (nextTitle === null) {
-        return
-      }
-      const title = nextTitle.trim()
-      if (!title) {
-        window.alert('标题不能为空；如需恢复原始标题，请在 Tabloom 弹窗中点击“恢复”。')
-        return
-      }
-      const request: RuntimeRequest = { type: 'TITLE_SET', title }
-      void chrome.runtime.sendMessage(request)
-    }
-
-    function handleKeyboardShortcut(event: KeyboardEvent): void {
-      const commandKey = event.metaKey || event.ctrlKey
-      if (
-        commandKey &&
-        event.shiftKey &&
-        event.key.toLowerCase() === 's'
-      ) {
-        event.preventDefault()
-        event.stopImmediatePropagation()
-        const request: RuntimeRequest = { type: 'SIDEPANEL_OPEN' }
-        void chrome.runtime.sendMessage(request)
-      }
-    }
-
     const observer = new MutationObserver(() => {
       if (!customTitle || applyingOverride) {
         return
@@ -97,13 +66,9 @@ export default defineContentScript({
         } else if (request.type === 'CONTENT_CLEAR_TITLE') {
           clearTitle()
           sendResponse({ ok: true })
-        } else if (request.type === 'CONTENT_PROMPT_TITLE') {
-          promptForTitle(request.initialValue)
-          sendResponse({ ok: true })
         }
       },
     )
-    document.addEventListener('keydown', handleKeyboardShortcut, true)
 
     const readyRequest: RuntimeRequest = { type: 'TITLE_CONTENT_READY' }
     void chrome.runtime

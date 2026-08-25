@@ -1,6 +1,7 @@
 import type { ContentRequest } from '../types'
 
 const CONTENT_SCRIPT_FILE = 'content-scripts/content.js'
+const pendingEnsureTasks = new Map<number, Promise<void>>()
 
 export function isInjectableTabUrl(url?: string): boolean {
   if (!url) return false
@@ -30,7 +31,7 @@ export async function injectContentScript(tabId: number): Promise<void> {
   })
 }
 
-export async function ensureContentScript(tabId: number): Promise<void> {
+async function ensureContentScriptOnce(tabId: number): Promise<void> {
   try {
     const ping: ContentRequest = { type: 'CONTENT_PING' }
     const response = await chrome.tabs.sendMessage(tabId, ping)
@@ -41,6 +42,21 @@ export async function ensureContentScript(tabId: number): Promise<void> {
     if (!isMissingReceiver(error)) throw error
   }
   await injectContentScript(tabId)
+}
+
+export function ensureContentScript(tabId: number): Promise<void> {
+  const pendingTask = pendingEnsureTasks.get(tabId)
+  if (pendingTask) {
+    return pendingTask
+  }
+
+  const task = ensureContentScriptOnce(tabId).finally(() => {
+    if (pendingEnsureTasks.get(tabId) === task) {
+      pendingEnsureTasks.delete(tabId)
+    }
+  })
+  pendingEnsureTasks.set(tabId, task)
+  return task
 }
 
 export async function sendToTabWithInjection(

@@ -145,7 +145,6 @@ export type ContentRequest =
   | { type: 'CONTENT_PING' }
   | { type: 'CONTENT_APPLY_TITLE'; title: string }
   | { type: 'CONTENT_CLEAR_TITLE' }
-  | { type: 'CONTENT_PROMPT_TITLE'; initialValue: string }
 
 export type ErrorCode =
   | 'RESTRICTED_PAGE'

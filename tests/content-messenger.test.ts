@@ -55,6 +55,31 @@ describe('内容脚本消息兜底', () => {
     })
   })
 
+  it('同一标签页的并发检查只注入一次', async () => {
+    const sendMessage = vi
+      .fn()
+      .mockRejectedValue(new Error('Receiving end does not exist'))
+    const executeScript = vi.fn().mockResolvedValue([])
+    vi.stubGlobal('chrome', {
+      tabs: {
+        sendMessage,
+        get: vi.fn().mockResolvedValue({
+          id: 8,
+          url: 'https://example.com',
+        }),
+      },
+      scripting: { executeScript },
+    })
+
+    const first = ensureContentScript(8)
+    const second = ensureContentScript(8)
+    expect(second).toBe(first)
+    await Promise.all([first, second])
+
+    expect(sendMessage).toHaveBeenCalledTimes(1)
+    expect(executeScript).toHaveBeenCalledTimes(1)
+  })
+
   it('旧页面没有接收端时补注入并重试标题消息', async () => {
     const sendMessage = vi
       .fn()
