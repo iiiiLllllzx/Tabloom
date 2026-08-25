@@ -142,6 +142,7 @@ export type RuntimeRequest =
   | { type: 'SIDEPANEL_OPEN' }
 
 export type ContentRequest =
+  | { type: 'CONTENT_PING' }
   | { type: 'CONTENT_APPLY_TITLE'; title: string }
   | { type: 'CONTENT_CLEAR_TITLE' }
   | { type: 'CONTENT_PROMPT_TITLE'; initialValue: string }

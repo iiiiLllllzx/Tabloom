@@ -51,6 +51,20 @@ export default defineContentScript({
       void chrome.runtime.sendMessage(request)
     }
 
+    function handleKeyboardShortcut(event: KeyboardEvent): void {
+      const commandKey = event.metaKey || event.ctrlKey
+      if (
+        commandKey &&
+        event.shiftKey &&
+        event.key.toLowerCase() === 's'
+      ) {
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        const request: RuntimeRequest = { type: 'SIDEPANEL_OPEN' }
+        void chrome.runtime.sendMessage(request)
+      }
+    }
+
     const observer = new MutationObserver(() => {
       if (!customTitle || applyingOverride) {
         return
@@ -75,7 +89,9 @@ export default defineContentScript({
 
     chrome.runtime.onMessage.addListener(
       (request: ContentRequest, _sender, sendResponse: (response: RuntimeResponse) => void) => {
-        if (request.type === 'CONTENT_APPLY_TITLE') {
+        if (request.type === 'CONTENT_PING') {
+          sendResponse({ ok: true })
+        } else if (request.type === 'CONTENT_APPLY_TITLE') {
           applyTitle(request.title)
           sendResponse({ ok: true })
         } else if (request.type === 'CONTENT_CLEAR_TITLE') {
@@ -87,6 +103,7 @@ export default defineContentScript({
         }
       },
     )
+    document.addEventListener('keydown', handleKeyboardShortcut, true)
 
     const readyRequest: RuntimeRequest = { type: 'TITLE_CONTENT_READY' }
     void chrome.runtime

@@ -74,8 +74,13 @@ export function PopupApp() {
   }
 
   async function openSidePanel(): Promise<void> {
-    await sendRequest({ type: 'SIDEPANEL_OPEN' })
-    window.close()
+    if (!tab) return
+    try {
+      await chrome.sidePanel.open({ windowId: tab.windowId })
+      window.close()
+    } catch (error) {
+      setNotice({ tone: 'error', text: (error as Error).message })
+    }
   }
 
   async function openManager(): Promise<void> {

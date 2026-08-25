@@ -19,6 +19,10 @@ import {
   undoGrouping,
 } from '../src/lib/group-history'
 import { clearTabState } from '../src/lib/storage'
+import {
+  ensureContentScript,
+  sendToTabWithInjection,
+} from '../src/lib/content-messenger'
 import type { ContentRequest, ErrorCode, RuntimeRequest, RuntimeResponse } from '../src/types'
 
 const MENU_ID = 'tabloom-rename-current-tab'
@@ -30,9 +34,9 @@ function success<T>(data?: T): RuntimeResponse<T> {
 function failure(error: unknown): RuntimeResponse {
   const message = error instanceof Error ? error.message : 'Chrome API 调用失败'
   const restricted =
-    message.includes('Receiving end does not exist') ||
     message.includes('Cannot access') ||
-    message.includes('chrome://')
+    message.includes('chrome://') ||
+    message.includes('此页面受 Chrome 限制')
   const code: ErrorCode = restricted ? 'RESTRICTED_PAGE' : 'CHROME_API_ERROR'
   return {
     ok: false,
@@ -44,7 +48,7 @@ function failure(error: unknown): RuntimeResponse {
 }
 
 async function sendToTab(tabId: number, request: ContentRequest): Promise<void> {
-  await chrome.tabs.sendMessage(tabId, request)
+  await sendToTabWithInjection(tabId, request)
 }
 
 async function getActiveTab(): Promise<chrome.tabs.Tab> {
@@ -67,10 +71,14 @@ async function promptTab(tabId?: number): Promise<void> {
   })
 }
 
-async function openSidePanel(): Promise<void> {
-  const window = await chrome.windows.getCurrent()
-  if (window.id !== undefined) {
-    await chrome.sidePanel.open({ windowId: window.id })
+async function openSidePanel(windowId?: number): Promise<void> {
+  if (windowId !== undefined) {
+    await chrome.sidePanel.open({ windowId })
+    return
+  }
+  const currentWindow = await chrome.windows.getLastFocused()
+  if (currentWindow.id !== undefined) {
+    await chrome.sidePanel.open({ windowId: currentWindow.id })
   }
 }
 
@@ -146,7 +154,7 @@ async function handleRequest(
         await chrome.tabs.remove(request.tabId)
         return success()
       case 'SIDEPANEL_OPEN':
-        await openSidePanel()
+        await openSidePanel(sender.tab?.windowId)
         return success()
       default:
         return failure(new Error('未知消息类型'))
@@ -178,10 +186,23 @@ async function ensureSidePanel(): Promise<void> {
   }
 }
 
+async function ensureContentScriptsOnOpenTabs(): Promise<void> {
+  const tabs = await chrome.tabs.query({})
+  await Promise.allSettled(
+    tabs.flatMap((tab) =>
+      tab.id === undefined ? [] : [ensureContentScript(tab.id)],
+    ),
+  )
+}
+
 export default defineBackground(() => {
+  // Manual extension reloads do not reliably emit onInstalled.
+  void ensureContentScriptsOnOpenTabs()
+
   chrome.runtime.onInstalled.addListener(() => {
     void ensureContextMenu()
     void ensureSidePanel()
+    void ensureContentScriptsOnOpenTabs()
   })
   chrome.runtime.onStartup.addListener(() => {
     void ensureContextMenu()
