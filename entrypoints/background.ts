@@ -11,7 +11,6 @@ import {
   createGroupWithTab,
   getWorkspace,
   moveTabToGroup,
-  reconcileWindowAfterTabRemoved,
   ungroupAllWindows,
   ungroupTab,
 } from '../src/lib/tab-service'
@@ -19,11 +18,10 @@ import {
   restoreInitialGrouping,
   undoGrouping,
 } from '../src/lib/group-history'
-import { handleRemovedTab } from '../src/lib/tab-events'
+import { clearTabState } from '../src/lib/storage'
 import type { ContentRequest, ErrorCode, RuntimeRequest, RuntimeResponse } from '../src/types'
 
 const MENU_ID = 'tabloom-rename-current-tab'
-const autoGroupTimers = new Map<number, ReturnType<typeof setTimeout>>()
 
 function success<T>(data?: T): RuntimeResponse<T> {
   return { ok: true, data }
@@ -67,6 +65,13 @@ async function promptTab(tabId?: number): Promise<void> {
     type: 'CONTENT_PROMPT_TITLE',
     initialValue: override?.title ?? '',
   })
+}
+
+async function openSidePanel(): Promise<void> {
+  const window = await chrome.windows.getCurrent()
+  if (window.id !== undefined) {
+    await chrome.sidePanel.open({ windowId: window.id })
+  }
 }
 
 async function handleRequest(
@@ -140,6 +145,9 @@ async function handleRequest(
       case 'TAB_CLOSE':
         await chrome.tabs.remove(request.tabId)
         return success()
+      case 'SIDEPANEL_OPEN':
+        await openSidePanel()
+        return success()
       default:
         return failure(new Error('未知消息类型'))
     }
@@ -158,51 +166,26 @@ async function ensureContextMenu(): Promise<void> {
   })
 }
 
-async function scheduleAutoGroup(windowId: number): Promise<void> {
-  const settings = await getSettings()
-  if (!settings.autoGroupEnabled) {
-    return
+async function ensureSidePanel(): Promise<void> {
+  try {
+    await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false })
+    await chrome.sidePanel.setOptions({
+      path: 'sidepanel.html',
+      enabled: true,
+    })
+  } catch {
+    // sidePanel may not be available on older Chrome versions
   }
-
-  const currentTimer = autoGroupTimers.get(windowId)
-  if (currentTimer) {
-    clearTimeout(currentTimer)
-  }
-  autoGroupTimers.set(
-    windowId,
-    setTimeout(() => {
-      autoGroupTimers.delete(windowId)
-      void autoGroupWindow(windowId).catch(() => undefined)
-    }, 450),
-  )
-}
-
-async function scheduleAfterTabRemoved(windowId: number): Promise<void> {
-  const settings = await getSettings()
-  if (settings.autoGroupEnabled) {
-    await scheduleAutoGroup(windowId)
-    return
-  }
-
-  const currentTimer = autoGroupTimers.get(windowId)
-  if (currentTimer) {
-    clearTimeout(currentTimer)
-  }
-  autoGroupTimers.set(
-    windowId,
-    setTimeout(() => {
-      autoGroupTimers.delete(windowId)
-      void reconcileWindowAfterTabRemoved(windowId).catch(() => undefined)
-    }, 450),
-  )
 }
 
 export default defineBackground(() => {
   chrome.runtime.onInstalled.addListener(() => {
     void ensureContextMenu()
+    void ensureSidePanel()
   })
   chrome.runtime.onStartup.addListener(() => {
     void ensureContextMenu()
+    void ensureSidePanel()
   })
 
   chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -214,6 +197,8 @@ export default defineBackground(() => {
   chrome.commands.onCommand.addListener((command) => {
     if (command === 'rename-current-tab') {
       void promptTab().catch(() => undefined)
+    } else if (command === 'toggle-side-panel') {
+      void openSidePanel().catch(() => undefined)
     }
   })
 
@@ -222,15 +207,9 @@ export default defineBackground(() => {
     return true
   })
 
-  chrome.tabs.onCreated.addListener((tab) => {
-    void scheduleAutoGroup(tab.windowId)
-  })
-  chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
-    if (changeInfo.url || changeInfo.status === 'complete') {
-      void scheduleAutoGroup(tab.windowId)
-    }
-  })
-  chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
-    void handleRemovedTab(tabId, removeInfo, scheduleAfterTabRemoved)
+  // Clean up per-tab state when tabs close.
+  // Automatic tab grouping has been removed; grouping is now manual only.
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    void clearTabState(tabId)
   })
 })

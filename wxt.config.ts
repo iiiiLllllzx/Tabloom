@@ -5,10 +5,10 @@ export default defineConfig({
   manifest: {
     name: 'Tabloom',
     short_name: 'Tabloom',
-    description: '重命名标签页，并按域名自动或手工整理 Chrome 标签组。',
-    version: '1.4.0',
-    minimum_chrome_version: '102',
-    permissions: ['tabs', 'tabGroups', 'storage', 'contextMenus'],
+    description: '任务窗口切换器，支持标签页自定义标题和手工域名分组。',
+    version: '1.5.0',
+    minimum_chrome_version: '114',
+    permissions: ['tabs', 'tabGroups', 'storage', 'contextMenus', 'sidePanel'],
     host_permissions: ['<all_urls>'],
     icons: {
       16: 'icon-16.png',
@@ -23,6 +23,9 @@ export default defineConfig({
         32: 'icon-32.png',
       },
     },
+    side_panel: {
+      default_path: 'sidepanel.html',
+    },
     commands: {
       'rename-current-tab': {
         suggested_key: {
@@ -30,6 +33,13 @@ export default defineConfig({
           mac: 'Command+Shift+E',
         },
         description: '重命名当前标签页',
+      },
+      'toggle-side-panel': {
+        suggested_key: {
+          default: 'Ctrl+Shift+S',
+          mac: 'Command+Shift+S',
+        },
+        description: '打开任务窗口切换器',
       },
     },
   },

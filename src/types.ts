@@ -139,6 +139,7 @@ export type RuntimeRequest =
   | { type: 'WORKSPACE_GET'; windowId?: number }
   | { type: 'TAB_ACTIVATE'; tabId: number; windowId: number }
   | { type: 'TAB_CLOSE'; tabId: number }
+  | { type: 'SIDEPANEL_OPEN' }
 
 export type ContentRequest =
   | { type: 'CONTENT_APPLY_TITLE'; title: string }

@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>Tabloom 窗口切换器 - 效果示意</title>
+<style>
+  :root {
+    --ink: #101820;
+    --paper: #f2f0ea;
+    --signal: #ff6b35;
+    --line: rgba(16, 24, 32, .18);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    font-family: "Avenir Next Condensed", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .sub { color: #5a646b; margin: 0 0 28px; font-size: 13px; }
+  .stage {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .frame {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 12px 30px rgba(16, 24, 32, .08);
+  }
+  .frame h3 {
+    margin: 0;
+    padding: 10px 14px;
+    font-size: 13px;
+    letter-spacing: .04em;
+    color: #fff;
+    background: var(--ink);
+  }
+  .frame h3 span { color: var(--signal); }
+  /* browser chrome */
+  .chrome {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 34px;
+    padding: 0 10px;
+    background: #dee3e8;
+    border-bottom: 1px solid #c4c9ce;
+    font-size: 11px;
+    color: #5a646b;
+  }
+  .dots { display: flex; gap: 5px; }
+  .dots i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+  .dots i:nth-child(1) { background: #ff5f57; }
+  .dots i:nth-child(2) { background: #febc2e; }
+  .dots i:nth-child(3) { background: #28c840; }
+  .urlbar {
+    flex: 1;
+    height: 20px;
+    background: #fff;
+    border-radius: 4px;
+    border: 1px solid #c4c9ce;
+  }
+  /* body layout */
+  .body {
+    display: flex;
+    height: 320px;
+  }
+  .page {
+    flex: 1;
+    padding: 18px;
+    background:
+      linear-gradient(rgba(16,24,32,.04) 1px, transparent 1px),
+      #fff;
+    background-size: 100% 22px;
+  }
+  .page .tabbar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .tab {
+    padding: 4px 10px;
+    font-size: 11px;
+    border-radius: 4px;
+  }
+  .tab.a { background: #d7e8ff; color: #1b4f9a; }
+  .tab.b { background: #e4d9ff; color: #5b2bb0; }
+  .tab.c { background: #d9f3e2; color: #1f7a3d; }
+  .page h2 { margin: 0 0 6px; font-size: 16px; }
+  .page p { margin: 0 0 8px; color: #5a646b; font-size: 12px; max-width: 90%; }
+  .page .swatch {
+    height: 80px; border-radius: 6px; margin-top: 10px;
+    background: linear-gradient(135deg, #4a90e2, #7b61ff);
+  }
+  /* side panel */
+  .panel {
+    width: 240px;
+    flex: 0 0 240px;
+    background: #fbfaf6;
+    border-left: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+  }
+  .panel.hidden {
+    width: 0;
+    flex: 0 0 0;
+    border-left: none;
+    overflow: hidden;
+  }
+  .panel-head {
+    padding: 12px 12px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .panel-head strong { font-size: 14px; }
+  .panel-head small { display: block; color: #7a8288; font-size: 10px; margin-top: 2px; }
+  .panel-list { flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .win {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 10px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .win .av {
+    width: 22px; height: 22px; border-radius: 50%;
+    display: grid; place-items: center;
+    color: #fff; font-size: 11px; font-weight: 700;
+    flex: 0 0 22px;
+  }
+  .win .meta { flex: 1; min-width: 0; }
+  .win .meta b { display: block; font-size: 12.5px; }
+  .win .meta small { color: #7a8288; font-size: 10px; }
+  .win .count {
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 10px; color: #7a8288;
+  }
+  .win.active {
+    background: #101820;
+    color: #fff;
+    border-color: #101820;
+    box-shadow: 3px 3px 0 var(--signal);
+  }
+  .win.active .meta small,
+  .win.active .count { color: #b8c0c6; }
+  .win:not(.active):hover { background: #f0ede4; }
+  .win .rename {
+    opacity: 0; font-size: 10px; color: #7a8288;
+  }
+  .win:hover .rename { opacity: 1; }
+  .panel-foot {
+    padding: 8px;
+    border-top: 1px solid var(--line);
+  }
+  .panel-foot button {
+    width: 100%;
+    padding: 8px;
+    font-size: 12px;
+    background: var(--signal);
+    color: #fff;
+    border: 0;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 700;
+  }
+  /* edge hint when hidden */
+  .edge {
+    width: 6px;
+    flex: 0 0 6px;
+    background:
+      repeating-linear-gradient(
+        180deg,
+        rgba(16,24,32,.18) 0 4px,
+        transparent 4px 10px
+      );
+    position: relative;
+  }
+  .edge::after {
+    content: "⌘⇧S";
+    position: absolute;
+    top: 50%;
+    left: 8px;
+    transform: translateY(-50%) rotate(90deg);
+    transform-origin: left center;
+    font-size: 10px;
+    color: #5a646b;
+    white-space: nowrap;
+  }
+  .legend {
+    margin-top: 26px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    font-size: 12px;
+    color: #445;
+  }
+  .legend div {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .legend b { display: block; margin-bottom: 4px; }
+  kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    border: 1px solid #b4bac0;
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    background: #fff;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 11px;
+  }
+</style>
+</head>
+<body>
+  <h1>Tabloom · 任务窗口切换器</h1>
+  <p class="sub">Side Panel 形态示意 · 默认隐藏，快捷键 / 扩展图标呼出，网页内容被挤压而非遮挡</p>
+
+  <div class="stage">
+    <!-- hidden state -->
+    <div class="frame">
+      <h3>状态一 · <span>平时隐藏</span>（不占空间）</h3>
+      <div class="chrome">
+        <div class="dots"><i></i><i></i><i></i></div>
+        <div class="urlbar"></div>
+        <span>14:02</span>
+      </div>
+      <div class="body">
+        <div class="page">
+          <div class="tabbar">
+            <span class="tab a">ml-bytedance</span>
+            <span class="tab b">飞书文档</span>
+            <span class="tab c">代码仓库</span>
+          </div>
+          <h2>A · 模型训练</h2>
+          <p>当前全屏窗口，没有任何侧边栏占位。按 <kbd>⌘⇧S</kbd> 呼出窗口列表。</p>
+          <p>鼠标移到右边缘不会误触发（Chrome Side Panel 不支持 hover 打开，避免在你看网页时乱弹）。</p>
+          <div class="swatch"></div>
+        </div>
+        <div class="edge" title="快捷键提示"></div>
+      </div>
+    </div>
+
+    <!-- shown state -->
+    <div class="frame">
+      <h3>状态二 · <span>呼出面板</span>（挤压网页，宽度约 240px）</h3>
+      <div class="chrome">
+        <div class="dots"><i></i><i></i><i></i></div>
+        <div class="urlbar"></div>
+        <span>14:02</span>
+      </div>
+      <div class="body">
+        <div class="page">
+          <div class="tabbar">
+            <span class="tab a">ml-bytedance</span>
+            <span class="tab b">飞书文档</span>
+          </div>
+          <h2>A · 模型训练</h2>
+          <p>面板打开后网页被向左挤压，不会挡住内容。点击任一条即可跳到对应全屏窗口。</p>
+          <p>窗口名称可就地修改，标签数实时更新。</p>
+          <div class="swatch"></div>
+        </div>
+        <aside class="panel">
+          <div class="panel-head">
+            <strong>任务窗口</strong>
+            <small>点击切换 · 悬停重命名</small>
+          </div>
+          <div class="panel-list">
+            <div class="win active">
+              <span class="av" style="background:#2f6bd4">A</span>
+              <span class="meta"><b>A 模型训练</b><small>当前窗口</small></span>
+              <span class="count">8</span>
+            </div>
+            <div class="win">
+              <span class="av" style="background:#d44a1b">B</span>
+              <span class="meta"><b>B 精度对比</b><small>ml-bytedance · 飞书</small></span>
+              <span class="count">12</span>
+              <span class="rename">✎</span>
+            </div>
+            <div class="win">
+              <span class="av" style="background:#7b2bb0">C</span>
+              <span class="meta"><b>C 模型迁移</b><small>code.byted · 文档</small></span>
+              <span class="count">6</span>
+              <span class="rename">✎</span>
+            </div>
+            <div class="win">
+              <span class="av" style="background:#23734f">D</span>
+              <span class="meta"><b>临时窗口</b><small>未命名</small></span>
+              <span class="count">3</span>
+              <span class="rename">✎</span>
+            </div>
+          </div>
+          <div class="panel-foot">
+            <button>+ 新建任务窗口</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div>
+      <b>尺寸</b>
+      默认约 240–320px，可拖拽到约 480px；关闭时宽度为 0，不残留任何边条。
+    </div>
+    <div>
+      <b>呼出</b>
+      全局快捷键 <kbd>⌘⇧S</kbd>（可在 <kbd>chrome://extensions/shortcuts</kbd> 改）或点扩展图标。
+    </div>
+    <div>
+      <b>与现有功能关系</b>
+      标签分组、阈值、撤销、标题重命名全部不变；这只是新增一个窗口导航入口。
+    </div>
+  </div>
+</body>
+</html>

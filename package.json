@@ -1,8 +1,8 @@
 {
   "name": "merlin-tab-manager",
   "private": true,
-  "version": "1.4.0",
-  "description": "重命名标签页并按域名管理 Chrome 标签组",
+  "version": "1.5.0",
+  "description": "任务窗口切换器，支持标签页自定义标题和手工域名分组",
   "type": "module",
   "scripts": {
     "dev": "wxt",
