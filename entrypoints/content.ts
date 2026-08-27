@@ -3,6 +3,7 @@ import type {
   RuntimeRequest,
   RuntimeResponse,
   TabTitleOverride,
+  WindowSwitcherNavigationKey,
 } from '../src/types'
 import { isWindowSwitcherShortcut } from '../src/lib/window-switcher'
 
@@ -13,6 +14,7 @@ export default defineContentScript({
     let customTitle: string | undefined
     let latestSiteTitle = ''
     let applyingOverride = false
+    let windowSwitcherActive = false
 
     function applyTitle(title: string): void {
       if (!document.title) {
@@ -39,7 +41,29 @@ export default defineContentScript({
       if (isWindowSwitcherShortcut(event)) {
         event.preventDefault()
         event.stopImmediatePropagation()
+        windowSwitcherActive = true
         const request: RuntimeRequest = { type: 'SIDEPANEL_OPEN' }
+        void chrome.runtime.sendMessage(request)
+        return
+      }
+
+      const navigationKeys: WindowSwitcherNavigationKey[] = [
+        'ArrowUp',
+        'ArrowDown',
+        'Enter',
+        'Escape',
+      ]
+      if (
+        windowSwitcherActive &&
+        navigationKeys.includes(event.key as WindowSwitcherNavigationKey)
+      ) {
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        const key = event.key as WindowSwitcherNavigationKey
+        if (key === 'Enter' || key === 'Escape') {
+          windowSwitcherActive = false
+        }
+        const request: RuntimeRequest = { type: 'SIDEPANEL_KEY', key }
         void chrome.runtime.sendMessage(request)
       }
     }
@@ -75,6 +99,9 @@ export default defineContentScript({
           sendResponse({ ok: true })
         } else if (request.type === 'CONTENT_CLEAR_TITLE') {
           clearTitle()
+          sendResponse({ ok: true })
+        } else if (request.type === 'CONTENT_WINDOW_SWITCHER_MODE') {
+          windowSwitcherActive = request.active
           sendResponse({ ok: true })
         }
       },

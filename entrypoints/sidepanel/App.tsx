@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import {
   assignColor,
   assignLetter,
@@ -8,6 +8,10 @@ import {
   type WindowMeta,
 } from '../../src/lib/window-names'
 import { extractHostname } from '../../src/lib/domain'
+import type {
+  RuntimeRequest,
+  WindowSwitcherNavigationKey,
+} from '../../src/types'
 
 interface WindowItem {
   id: number
@@ -20,14 +24,32 @@ interface WindowItem {
 
 export function SidePanelApp() {
   const [windows, setWindows] = useState<WindowItem[]>([])
+  const [selectedId, setSelectedId] = useState<number | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editValue, setEditValue] = useState('')
+  const shellRef = useRef<HTMLDivElement>(null)
+  const hostWindowIdRef = useRef<number>()
+  const readyWindowIdRef = useRef<number>()
+  const itemRefs = useRef(new Map<number, HTMLButtonElement>())
 
   const refresh = useCallback(async () => {
-    const [allWindows, allMeta] = await Promise.all([
+    const [allWindows, allMeta, currentWindow] = await Promise.all([
       chrome.windows.getAll({ populate: true, windowTypes: ['normal'] }),
       getAllWindowMeta(),
+      chrome.windows.getCurrent(),
     ])
+    hostWindowIdRef.current ??= currentWindow.id
+    if (
+      currentWindow.id !== undefined &&
+      readyWindowIdRef.current !== currentWindow.id
+    ) {
+      readyWindowIdRef.current = currentWindow.id
+      const request: RuntimeRequest = {
+        type: 'SIDEPANEL_READY',
+        windowId: currentWindow.id,
+      }
+      void chrome.runtime.sendMessage(request)
+    }
 
     const sorted = allWindows
       .filter((w): w is chrome.windows.Window & { id: number } => w.id !== undefined)
@@ -59,6 +81,12 @@ export function SidePanelApp() {
     })
 
     setWindows(items)
+    setSelectedId((currentId) => {
+      if (currentId !== null && items.some((item) => item.id === currentId)) {
+        return currentId
+      }
+      return items.find((item) => item.focused)?.id ?? items[0]?.id ?? null
+    })
   }, [])
 
   useEffect(() => {
@@ -94,8 +122,88 @@ export function SidePanelApp() {
     }
   }, [refresh])
 
+  useEffect(() => {
+    shellRef.current?.focus({ preventScroll: true })
+  }, [windows.length])
+
+  useEffect(() => {
+    if (selectedId === null) return
+    itemRefs.current.get(selectedId)?.scrollIntoView?.({
+      block: 'nearest',
+    })
+  }, [selectedId])
+
+  useEffect(() => {
+    const onMessage = (request: RuntimeRequest) => {
+      if (request.type === 'SIDEPANEL_KEY') {
+        handleNavigationKey(request.key)
+      }
+    }
+    chrome.runtime.onMessage.addListener(onMessage)
+    return () => chrome.runtime.onMessage.removeListener(onMessage)
+  })
+
   async function focusWindow(windowId: number) {
     await chrome.windows.update(windowId, { focused: true })
+  }
+
+  async function closeSidePanel(): Promise<void> {
+    const hostWindowId = hostWindowIdRef.current
+    if (hostWindowId !== undefined) {
+      const request: RuntimeRequest = {
+        type: 'SIDEPANEL_CLOSED',
+        windowId: hostWindowId,
+      }
+      await chrome.runtime.sendMessage(request)
+    }
+    if (
+      hostWindowId !== undefined &&
+      typeof chrome.sidePanel.close === 'function'
+    ) {
+      await chrome.sidePanel.close({ windowId: hostWindowId })
+      return
+    }
+    window.close()
+  }
+
+  async function activateSelectedWindow(windowId: number): Promise<void> {
+    await focusWindow(windowId)
+    await closeSidePanel()
+  }
+
+  function moveSelection(offset: -1 | 1): void {
+    if (windows.length === 0) return
+    setSelectedId((currentId) => {
+      const currentIndex = windows.findIndex((item) => item.id === currentId)
+      const baseIndex = currentIndex >= 0 ? currentIndex : 0
+      const nextIndex = (baseIndex + offset + windows.length) % windows.length
+      return windows[nextIndex]!.id
+    })
+  }
+
+  function handleNavigationKey(key: WindowSwitcherNavigationKey): void {
+    if (editingId !== null) return
+    if (key === 'ArrowDown' || key === 'ArrowUp') {
+      moveSelection(key === 'ArrowDown' ? 1 : -1)
+    } else if (key === 'Enter' && selectedId !== null) {
+      void activateSelectedWindow(selectedId)
+    } else if (key === 'Escape') {
+      void closeSidePanel()
+    }
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    if (event.target instanceof HTMLInputElement) return
+    const navigationKeys: WindowSwitcherNavigationKey[] = [
+      'ArrowUp',
+      'ArrowDown',
+      'Enter',
+      'Escape',
+    ]
+    if (navigationKeys.includes(event.key as WindowSwitcherNavigationKey)) {
+      event.preventDefault()
+      handleNavigationKey(event.key as WindowSwitcherNavigationKey)
+    }
   }
 
   function startEdit(item: WindowItem) {
@@ -116,7 +224,13 @@ export function SidePanelApp() {
   }
 
   return (
-    <div className="sp-shell">
+    <div
+      ref={shellRef}
+      className="sp-shell"
+      tabIndex={-1}
+      aria-label="任务窗口切换器"
+      onKeyDown={handleKeyDown}
+    >
       <header className="sp-head">
         <div>
           <strong>任务窗口</strong>
@@ -136,10 +250,22 @@ export function SidePanelApp() {
         {windows.map((item) => (
           <button
             key={item.id}
-            className={`sp-win${item.focused ? ' active' : ''}`}
-            onClick={() => void focusWindow(item.id)}
+            ref={(element) => {
+              if (element) itemRefs.current.set(item.id, element)
+              else itemRefs.current.delete(item.id)
+            }}
+            className={`sp-win${item.focused ? ' active' : ''}${
+              selectedId === item.id ? ' selected' : ''
+            }`}
+            onClick={() => {
+              setSelectedId(item.id)
+              void focusWindow(item.id)
+            }}
             onDoubleClick={() => startEdit(item)}
             title={item.activeTabTitle}
+            aria-label={`${item.meta.name}，${item.activeTabHostname}，${
+              item.tabCount
+            } 个标签${selectedId === item.id ? '，已选择' : ''}`}
           >
             <span
               className="sp-av"

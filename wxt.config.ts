@@ -6,7 +6,7 @@ export default defineConfig({
     name: 'Tabloom',
     short_name: 'Tabloom',
     description: '任务窗口切换器，支持标签页自定义标题和自动域名分组。',
-    version: '1.6.0',
+    version: '1.6.1',
     minimum_chrome_version: '116',
     permissions: [
       'tabs',

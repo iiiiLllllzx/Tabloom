@@ -109,6 +109,12 @@ export interface UngroupAllResult {
   ungroupedTabs: number
 }
 
+export type WindowSwitcherNavigationKey =
+  | 'ArrowUp'
+  | 'ArrowDown'
+  | 'Enter'
+  | 'Escape'
+
 export type RuntimeRequest =
   | { type: 'TITLE_CONTENT_READY' }
   | { type: 'TITLE_GET'; tabId: number }
@@ -140,11 +146,15 @@ export type RuntimeRequest =
   | { type: 'TAB_ACTIVATE'; tabId: number; windowId: number }
   | { type: 'TAB_CLOSE'; tabId: number }
   | { type: 'SIDEPANEL_OPEN' }
+  | { type: 'SIDEPANEL_READY'; windowId: number }
+  | { type: 'SIDEPANEL_CLOSED'; windowId: number }
+  | { type: 'SIDEPANEL_KEY'; key: WindowSwitcherNavigationKey }
 
 export type ContentRequest =
   | { type: 'CONTENT_PING' }
   | { type: 'CONTENT_APPLY_TITLE'; title: string }
   | { type: 'CONTENT_CLEAR_TITLE' }
+  | { type: 'CONTENT_WINDOW_SWITCHER_MODE'; active: boolean }
 
 export type ErrorCode =
   | 'RESTRICTED_PAGE'

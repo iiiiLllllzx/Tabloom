@@ -95,11 +95,22 @@ button, input { font: inherit; }
   background: rgba(255, 255, 255, .65);
 }
 
+.sp-win.selected {
+  border-color: #ff6b35;
+  background: rgba(255, 255, 255, .82);
+  box-shadow: inset 3px 0 0 #ff6b35;
+}
+
 .sp-win.active {
   background: #101820;
   color: #fff;
   border-color: #101820;
   box-shadow: 3px 3px 0 #ff6b35;
+}
+
+.sp-win.active.selected {
+  border-color: #ff6b35;
+  box-shadow: 3px 3px 0 #ff6b35, inset 3px 0 0 #ff6b35;
 }
 
 .sp-av {

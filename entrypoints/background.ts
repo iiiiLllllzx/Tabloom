@@ -30,6 +30,7 @@ import { openWindowSwitcherFromCommand } from '../src/lib/window-switcher'
 import type { ContentRequest, ErrorCode, RuntimeRequest, RuntimeResponse } from '../src/types'
 
 const MENU_ID = 'tabloom-rename-current-tab'
+const windowSwitcherTabs = new Map<number, number>()
 const { scheduleAutoGroup, scheduleAfterTabRemoved } =
   createAutoGroupScheduler({
     getSettings,
@@ -91,6 +92,29 @@ async function openSidePanel(windowId?: number): Promise<void> {
   if (currentWindow.id !== undefined) {
     await chrome.sidePanel.open({ windowId: currentWindow.id })
   }
+}
+
+async function setWindowSwitcherMode(
+  windowId: number,
+  active: boolean,
+  tabId?: number,
+): Promise<void> {
+  let targetTabId = tabId ?? windowSwitcherTabs.get(windowId)
+  if (active && targetTabId === undefined) {
+    const [activeTab] = await chrome.tabs.query({ active: true, windowId })
+    targetTabId = activeTab?.id
+  }
+  if (targetTabId === undefined) return
+
+  if (active) {
+    windowSwitcherTabs.set(windowId, targetTabId)
+  } else {
+    windowSwitcherTabs.delete(windowId)
+  }
+  await sendToTab(targetTabId, {
+    type: 'CONTENT_WINDOW_SWITCHER_MODE',
+    active,
+  })
 }
 
 async function handleRequest(
@@ -165,7 +189,18 @@ async function handleRequest(
         await chrome.tabs.remove(request.tabId)
         return success()
       case 'SIDEPANEL_OPEN':
+        if (sender.tab?.id !== undefined) {
+          windowSwitcherTabs.set(sender.tab.windowId, sender.tab.id)
+        }
         await openSidePanel(sender.tab?.windowId)
+        return success()
+      case 'SIDEPANEL_READY':
+        await setWindowSwitcherMode(request.windowId, true).catch(() => undefined)
+        return success()
+      case 'SIDEPANEL_CLOSED':
+        await setWindowSwitcherMode(request.windowId, false).catch(() => undefined)
+        return success()
+      case 'SIDEPANEL_KEY':
         return success()
       default:
         return failure(new Error('未知消息类型'))
@@ -230,7 +265,12 @@ export default defineBackground(() => {
     if (command === 'rename-current-tab') {
       void promptTab(tab?.id).catch(() => undefined)
     } else {
-      openWindowSwitcherFromCommand(command, tab)
+      const handled = openWindowSwitcherFromCommand(command, tab)
+      if (handled && tab?.id !== undefined) {
+        void setWindowSwitcherMode(tab.windowId, true, tab.id).catch(
+          () => undefined,
+        )
+      }
     }
   })
 
@@ -249,5 +289,9 @@ export default defineBackground(() => {
   })
   chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
     void handleRemovedTab(tabId, removeInfo, scheduleAfterTabRemoved)
+  })
+
+  chrome.sidePanel.onClosed?.addListener(({ windowId }) => {
+    void setWindowSwitcherMode(windowId, false).catch(() => undefined)
   })
 })
