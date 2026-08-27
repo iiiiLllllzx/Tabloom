@@ -4,6 +4,7 @@ import type {
   RuntimeResponse,
   TabTitleOverride,
 } from '../src/types'
+import { isWindowSwitcherShortcut } from '../src/lib/window-switcher'
 
 export default defineContentScript({
   matches: ['http://*/*', 'https://*/*'],
@@ -31,6 +32,15 @@ export default defineContentScript({
       customTitle = undefined
       if (latestSiteTitle) {
         document.title = latestSiteTitle
+      }
+    }
+
+    function handleWindowSwitcherShortcut(event: KeyboardEvent): void {
+      if (isWindowSwitcherShortcut(event)) {
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        const request: RuntimeRequest = { type: 'SIDEPANEL_OPEN' }
+        void chrome.runtime.sendMessage(request)
       }
     }
 
@@ -69,6 +79,7 @@ export default defineContentScript({
         }
       },
     )
+    document.addEventListener('keydown', handleWindowSwitcherShortcut, true)
 
     const readyRequest: RuntimeRequest = { type: 'TITLE_CONTENT_READY' }
     void chrome.runtime

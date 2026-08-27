@@ -13,7 +13,7 @@ export const GROUP_COLORS = [
 export type GroupColor = (typeof GROUP_COLORS)[number]
 
 export interface ExtensionSettings {
-  schemaVersion: 3
+  schemaVersion: 4
   autoGroupEnabled: boolean
   minTabsPerGroup: number
 }

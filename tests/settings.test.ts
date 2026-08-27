@@ -18,14 +18,14 @@ describe('自动整理设置迁移', () => {
     vi.unstubAllGlobals()
   })
 
-  it('将旧版取消分组遗留的关闭状态迁移为开启', async () => {
+  it('将 v1.5 关闭自动整理的状态迁移为开启', async () => {
     const set = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('chrome', {
       storage: {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 2,
+              schemaVersion: 3,
               autoGroupEnabled: false,
               minTabsPerGroup: 3,
             },
@@ -36,13 +36,13 @@ describe('自动整理设置迁移', () => {
     })
 
     await expect(getSettings()).resolves.toEqual({
-      schemaVersion: 3,
+      schemaVersion: 4,
       autoGroupEnabled: true,
       minTabsPerGroup: 3,
     })
     expect(set).toHaveBeenCalledWith({
       settings: {
-        schemaVersion: 3,
+        schemaVersion: 4,
         autoGroupEnabled: true,
         minTabsPerGroup: 3,
       },
@@ -56,7 +56,7 @@ describe('自动整理设置迁移', () => {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 3,
+              schemaVersion: 4,
               autoGroupEnabled: false,
               minTabsPerGroup: 4,
             },
@@ -67,7 +67,7 @@ describe('自动整理设置迁移', () => {
     })
 
     await expect(getSettings()).resolves.toEqual({
-      schemaVersion: 3,
+      schemaVersion: 4,
       autoGroupEnabled: false,
       minTabsPerGroup: 4,
     })

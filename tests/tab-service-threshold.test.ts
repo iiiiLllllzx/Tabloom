@@ -33,7 +33,7 @@ describe('多窗口阈值分组服务', () => {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 3,
+              schemaVersion: 4,
               autoGroupEnabled: true,
               minTabsPerGroup: 3,
             },
@@ -77,7 +77,7 @@ describe('多窗口阈值分组服务', () => {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 3,
+              schemaVersion: 4,
               autoGroupEnabled: false,
               minTabsPerGroup: 3,
             },
@@ -118,7 +118,7 @@ describe('多窗口阈值分组服务', () => {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 3,
+              schemaVersion: 4,
               autoGroupEnabled: true,
               minTabsPerGroup: 3,
             },
@@ -185,7 +185,7 @@ describe('多窗口阈值分组服务', () => {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 3,
+              schemaVersion: 4,
               autoGroupEnabled: true,
               minTabsPerGroup: 3,
             },
@@ -248,7 +248,7 @@ describe('多窗口阈值分组服务', () => {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 3,
+              schemaVersion: 4,
               autoGroupEnabled: true,
               minTabsPerGroup: 3,
             },
@@ -295,7 +295,7 @@ describe('多窗口阈值分组服务', () => {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 3,
+              schemaVersion: 4,
               autoGroupEnabled: true,
               minTabsPerGroup: 3,
             },
@@ -359,7 +359,7 @@ describe('多窗口阈值分组服务', () => {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 3,
+              schemaVersion: 4,
               autoGroupEnabled: true,
               minTabsPerGroup: 3,
             },
@@ -410,7 +410,7 @@ describe('多窗口阈值分组服务', () => {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 3,
+              schemaVersion: 4,
               autoGroupEnabled: false,
               minTabsPerGroup: 3,
             },
@@ -465,7 +465,7 @@ describe('多窗口阈值分组服务', () => {
         local: {
           get: vi.fn().mockResolvedValue({
             settings: {
-              schemaVersion: 3,
+              schemaVersion: 4,
               autoGroupEnabled: true,
               minTabsPerGroup: 3,
             },

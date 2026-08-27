@@ -12,7 +12,7 @@ function renderToolbar(options: { canUndo: boolean; canRestore: boolean }) {
       selectedWindowId={1}
       query=""
       settings={{
-        schemaVersion: 3,
+        schemaVersion: 4,
         autoGroupEnabled: true,
         minTabsPerGroup: 3,
       }}

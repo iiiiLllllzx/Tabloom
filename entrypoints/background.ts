@@ -11,6 +11,7 @@ import {
   createGroupWithTab,
   getWorkspace,
   moveTabToGroup,
+  reconcileWindowAfterTabRemoved,
   ungroupAllWindows,
   ungroupTab,
 } from '../src/lib/tab-service'
@@ -18,15 +19,23 @@ import {
   restoreInitialGrouping,
   undoGrouping,
 } from '../src/lib/group-history'
-import { clearTabState } from '../src/lib/storage'
+import { handleRemovedTab } from '../src/lib/tab-events'
 import {
   ensureContentScript,
   sendToTabWithInjection,
 } from '../src/lib/content-messenger'
+import { createAutoGroupScheduler } from '../src/lib/auto-group-scheduler'
 import { requestTitleFromTab } from '../src/lib/title-prompt'
+import { openWindowSwitcherFromCommand } from '../src/lib/window-switcher'
 import type { ContentRequest, ErrorCode, RuntimeRequest, RuntimeResponse } from '../src/types'
 
 const MENU_ID = 'tabloom-rename-current-tab'
+const { scheduleAutoGroup, scheduleAfterTabRemoved } =
+  createAutoGroupScheduler({
+    getSettings,
+    autoGroupWindow,
+    reconcileWindowAfterTabRemoved,
+  })
 
 function success<T>(data?: T): RuntimeResponse<T> {
   return { ok: true, data }
@@ -220,8 +229,8 @@ export default defineBackground(() => {
   chrome.commands.onCommand.addListener((command, tab) => {
     if (command === 'rename-current-tab') {
       void promptTab(tab?.id).catch(() => undefined)
-    } else if (command === 'open-window-switcher') {
-      void openSidePanel(tab?.windowId).catch(() => undefined)
+    } else {
+      openWindowSwitcherFromCommand(command, tab)
     }
   })
 
@@ -230,9 +239,15 @@ export default defineBackground(() => {
     return true
   })
 
-  // Clean up per-tab state when tabs close.
-  // Automatic tab grouping has been removed; grouping is now manual only.
-  chrome.tabs.onRemoved.addListener((tabId) => {
-    void clearTabState(tabId)
+  chrome.tabs.onCreated.addListener((tab) => {
+    void scheduleAutoGroup(tab.windowId)
+  })
+  chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+    if (changeInfo.url || changeInfo.status === 'complete') {
+      void scheduleAutoGroup(tab.windowId)
+    }
+  })
+  chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+    void handleRemovedTab(tabId, removeInfo, scheduleAfterTabRemoved)
   })
 })

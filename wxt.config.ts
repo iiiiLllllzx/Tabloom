@@ -5,8 +5,8 @@ export default defineConfig({
   manifest: {
     name: 'Tabloom',
     short_name: 'Tabloom',
-    description: '任务窗口切换器，支持标签页自定义标题和手工域名分组。',
-    version: '1.5.2',
+    description: '任务窗口切换器，支持标签页自定义标题和自动域名分组。',
+    version: '1.6.0',
     minimum_chrome_version: '116',
     permissions: [
       'tabs',
@@ -41,10 +41,10 @@ export default defineConfig({
         },
         description: '重命名当前标签页',
       },
-      'open-window-switcher': {
+      'open-window-switcher-v2': {
         suggested_key: {
-          default: 'Ctrl+Shift+L',
-          mac: 'Command+Shift+L',
+          default: 'Ctrl+Shift+K',
+          mac: 'Command+Shift+K',
         },
         description: '打开任务窗口切换器',
       },

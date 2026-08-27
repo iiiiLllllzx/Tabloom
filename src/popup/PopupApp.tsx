@@ -105,7 +105,7 @@ export function PopupApp() {
           <b>任务窗口切换器</b>
           <small>查看所有窗口并快速跳转</small>
         </span>
-        <kbd>⌘⇧L</kbd>
+        <kbd>⌘⇧K</kbd>
       </button>
 
       <section className="current-tab" aria-label="当前标签页">
@@ -166,7 +166,7 @@ export function PopupApp() {
       <footer>
         <Keyboard size={14} />
         <span>
-          <kbd>⌘</kbd><kbd>⇧</kbd><kbd>L</kbd> 窗口切换
+          <kbd>⌘</kbd><kbd>⇧</kbd><kbd>K</kbd> 窗口切换
           &nbsp;·&nbsp;
           <kbd>⌘</kbd><kbd>⇧</kbd><kbd>E</kbd> 重命名
         </span>

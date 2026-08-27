@@ -14,7 +14,7 @@ const GROUP_HISTORY_KEY = 'groupHistory'
 const MAX_UNDO_STEPS = 20
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   autoGroupEnabled: true,
   minTabsPerGroup: 3,
 }
@@ -27,11 +27,11 @@ export async function getSettings(): Promise<ExtensionSettings> {
     ...DEFAULT_SETTINGS,
     ...saved,
     autoGroupEnabled:
-      savedVersion < 3 ? true : (saved?.autoGroupEnabled ?? true),
+      savedVersion < 4 ? true : (saved?.autoGroupEnabled ?? true),
     minTabsPerGroup: normalizeGroupThreshold(saved?.minTabsPerGroup),
-    schemaVersion: 3,
+    schemaVersion: 4,
   }
-  if (savedVersion < 3) {
+  if (savedVersion < 4) {
     await chrome.storage.local.set({ [SETTINGS_KEY]: settings })
   }
   return settings
@@ -47,7 +47,7 @@ export async function updateSettings(
     minTabsPerGroup: normalizeGroupThreshold(
       changes.minTabsPerGroup ?? current.minTabsPerGroup,
     ),
-    schemaVersion: 3 as const,
+    schemaVersion: 4 as const,
   }
   await chrome.storage.local.set({ [SETTINGS_KEY]: settings })
   return settings
