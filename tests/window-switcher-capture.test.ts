@@ -53,6 +53,56 @@ describe('窗口切换器键盘抢占', () => {
     capture.dispose()
   })
 
+  it.each([
+    ['w', 'ArrowUp'],
+    ['W', 'ArrowUp'],
+    ['s', 'ArrowDown'],
+    ['S', 'ArrowDown'],
+  ] as const)('激活后将 %s 映射为 %s', (input, expected) => {
+    const onNavigate = vi.fn()
+    const webShellHandler = vi.fn()
+    const capture = createWindowSwitcherKeyboardCapture({
+      target: window,
+      onOpen: vi.fn(),
+      onNavigate,
+    })
+    capture.setActive(true)
+    window.addEventListener('keydown', webShellHandler)
+    window.addEventListener('keyup', webShellHandler)
+
+    const keydown = dispatchKey('keydown', input)
+    const keyup = dispatchKey('keyup', input)
+
+    expect(keydown.defaultPrevented).toBe(true)
+    expect(keyup.defaultPrevented).toBe(true)
+    expect(onNavigate).toHaveBeenCalledWith(expected)
+    expect(webShellHandler).not.toHaveBeenCalled()
+
+    window.removeEventListener('keydown', webShellHandler)
+    window.removeEventListener('keyup', webShellHandler)
+    capture.dispose()
+  })
+
+  it('未激活时 W/S 正常传递给页面', () => {
+    const webShellHandler = vi.fn()
+    const capture = createWindowSwitcherKeyboardCapture({
+      target: window,
+      onOpen: vi.fn(),
+      onNavigate: vi.fn(),
+    })
+    window.addEventListener('keydown', webShellHandler)
+
+    const w = dispatchKey('keydown', 'w')
+    const s = dispatchKey('keydown', 's')
+
+    expect(w.defaultPrevented).toBe(false)
+    expect(s.defaultPrevented).toBe(false)
+    expect(webShellHandler).toHaveBeenCalledTimes(2)
+
+    window.removeEventListener('keydown', webShellHandler)
+    capture.dispose()
+  })
+
   it('回车后释放会话，但仍吞掉对应的 keyup', () => {
     const onNavigate = vi.fn()
     const capture = createWindowSwitcherKeyboardCapture({

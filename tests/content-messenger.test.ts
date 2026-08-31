@@ -70,7 +70,12 @@ describe('内容脚本消息兜底', () => {
 
     await ensureWindowSwitcherCapture(7)
 
-    expect(executeScript).toHaveBeenCalledWith({
+    expect(executeScript).toHaveBeenNthCalledWith(1, {
+      target: { tabId: 7, allFrames: true },
+      files: ['content-scripts/window-switcher-shield.js'],
+      world: 'MAIN',
+    })
+    expect(executeScript).toHaveBeenNthCalledWith(2, {
       target: { tabId: 7, allFrames: true },
       files: ['content-scripts/window-switcher-capture.js'],
     })

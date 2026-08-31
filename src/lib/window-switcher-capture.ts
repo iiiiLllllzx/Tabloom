@@ -7,6 +7,7 @@ interface WindowSwitcherKeyboardCaptureOptions {
   target: Window
   onOpen: () => void
   onNavigate: (key: WindowSwitcherNavigationKey) => void
+  onActiveChange?: (active: boolean) => void
   timeoutMs?: number
 }
 
@@ -17,10 +18,20 @@ const NAVIGATION_KEYS = new Set<WindowSwitcherNavigationKey>([
   'Escape',
 ])
 
+function toNavigationKey(key: string): WindowSwitcherNavigationKey | undefined {
+  const normalizedKey = key.toLowerCase()
+  if (normalizedKey === 'w') return 'ArrowUp'
+  if (normalizedKey === 's') return 'ArrowDown'
+  return NAVIGATION_KEYS.has(key as WindowSwitcherNavigationKey)
+    ? (key as WindowSwitcherNavigationKey)
+    : undefined
+}
+
 export function createWindowSwitcherKeyboardCapture({
   target,
   onOpen,
   onNavigate,
+  onActiveChange,
   timeoutMs = WINDOW_SWITCHER_CAPTURE_TIMEOUT_MS,
 }: WindowSwitcherKeyboardCaptureOptions) {
   let active = false
@@ -37,15 +48,17 @@ export function createWindowSwitcherKeyboardCapture({
   function armTimer(): void {
     clearTimer()
     timeoutId = setTimeout(() => {
-      active = false
       timeoutId = undefined
+      setActive(false)
     }, timeoutMs)
   }
 
   function setActive(nextActive: boolean): void {
+    const changed = active !== nextActive
     active = nextActive
     if (active) armTimer()
     else clearTimer()
+    if (changed) onActiveChange?.(active)
   }
 
   function suppress(event: KeyboardEvent): void {
@@ -67,19 +80,20 @@ export function createWindowSwitcherKeyboardCapture({
       return
     }
 
-    if (event.type === 'keyup' && suppressedUntilKeyUp.has(event.key)) {
-      suppressedUntilKeyUp.delete(event.key)
+    const keyToken = event.key.toLowerCase()
+    if (event.type === 'keyup' && suppressedUntilKeyUp.has(keyToken)) {
+      suppressedUntilKeyUp.delete(keyToken)
       suppress(event)
       return
     }
 
-    const key = event.key as WindowSwitcherNavigationKey
-    if (!active || !NAVIGATION_KEYS.has(key)) return
+    const key = toNavigationKey(event.key)
+    if (!active || key === undefined) return
 
     suppress(event)
     if (event.type !== 'keydown') return
 
-    suppressedUntilKeyUp.add(key)
+    suppressedUntilKeyUp.add(keyToken)
     armTimer()
     onNavigate(key)
     if (key === 'Enter' || key === 'Escape') {

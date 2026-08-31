@@ -1,4 +1,8 @@
-import { createWindowSwitcherKeyboardCapture } from '../src/lib/window-switcher-capture'
+import {
+  isWindowSwitcherPageMessage,
+  WINDOW_SWITCHER_EVENT_SOURCE,
+  type WindowSwitcherPageMessage,
+} from '../src/lib/window-switcher-events'
 import type {
   ContentRequest,
   RuntimeRequest,
@@ -6,7 +10,7 @@ import type {
 } from '../src/types'
 
 interface CaptureScope extends Window {
-  __tabloomWindowSwitcherCaptureInstalled?: boolean
+  __tabloomWindowSwitcherCaptureV2Installed?: boolean
 }
 
 export default defineContentScript({
@@ -15,20 +19,36 @@ export default defineContentScript({
   runAt: 'document_start',
   main() {
     const scope = window as CaptureScope
-    if (scope.__tabloomWindowSwitcherCaptureInstalled) return
-    scope.__tabloomWindowSwitcherCaptureInstalled = true
+    if (scope.__tabloomWindowSwitcherCaptureV2Installed) return
+    scope.__tabloomWindowSwitcherCaptureV2Installed = true
+    let active = false
 
-    const keyboardCapture = createWindowSwitcherKeyboardCapture({
-      target: window,
-      onOpen: () => {
-        const request: RuntimeRequest = { type: 'SIDEPANEL_OPEN' }
-        void chrome.runtime.sendMessage(request)
+    window.addEventListener(
+      'message',
+      (event: MessageEvent<unknown>) => {
+        if (
+          event.source !== window ||
+          !isWindowSwitcherPageMessage(event.data)
+        ) {
+          return
+        }
+        if (event.data.type === 'open') {
+          active = true
+          const request: RuntimeRequest = { type: 'SIDEPANEL_OPEN' }
+          void chrome.runtime.sendMessage(request)
+        } else if (event.data.type === 'navigate' && active) {
+          if (event.data.key === 'Enter' || event.data.key === 'Escape') {
+            active = false
+          }
+          const request: RuntimeRequest = {
+            type: 'SIDEPANEL_KEY',
+            key: event.data.key,
+          }
+          void chrome.runtime.sendMessage(request)
+        }
       },
-      onNavigate: (key) => {
-        const request: RuntimeRequest = { type: 'SIDEPANEL_KEY', key }
-        void chrome.runtime.sendMessage(request)
-      },
-    })
+      false,
+    )
 
     chrome.runtime.onMessage.addListener(
       (
@@ -36,10 +56,15 @@ export default defineContentScript({
         _sender,
         sendResponse: (response: RuntimeResponse) => void,
       ) => {
-        if (request.type === 'CONTENT_WINDOW_SWITCHER_MODE') {
-          keyboardCapture.setActive(request.active)
-          sendResponse({ ok: true })
+        if (request.type !== 'CONTENT_WINDOW_SWITCHER_MODE') return
+        const message: WindowSwitcherPageMessage = {
+          source: WINDOW_SWITCHER_EVENT_SOURCE,
+          type: 'mode',
+          active: request.active,
         }
+        active = request.active
+        window.postMessage(message, '*')
+        sendResponse({ ok: true })
       },
     )
   },

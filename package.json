@@ -1,7 +1,7 @@
 {
   "name": "merlin-tab-manager",
   "private": true,
-  "version": "1.6.2",
+  "version": "1.6.4",
   "description": "任务窗口切换器，支持标签页自定义标题和自动域名分组",
   "type": "module",
   "scripts": {

@@ -3,6 +3,8 @@ import type { ContentRequest } from '../types'
 const CONTENT_SCRIPT_FILE = 'content-scripts/content.js'
 const WINDOW_SWITCHER_SCRIPT_FILE =
   'content-scripts/window-switcher-capture.js'
+const WINDOW_SWITCHER_SHIELD_FILE =
+  'content-scripts/window-switcher-shield.js'
 const pendingEnsureTasks = new Map<number, Promise<void>>()
 
 export function isInjectableTabUrl(url?: string): boolean {
@@ -39,6 +41,11 @@ export async function ensureWindowSwitcherCapture(
   const tab = await chrome.tabs.get(tabId)
   if (!isInjectableTabUrl(tab.url ?? tab.pendingUrl)) return
 
+  await chrome.scripting.executeScript({
+    target: { tabId, allFrames: true },
+    files: [WINDOW_SWITCHER_SHIELD_FILE],
+    world: 'MAIN',
+  })
   await chrome.scripting.executeScript({
     target: { tabId, allFrames: true },
     files: [WINDOW_SWITCHER_SCRIPT_FILE],
