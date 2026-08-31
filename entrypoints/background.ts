@@ -22,6 +22,7 @@ import {
 import { handleRemovedTab } from '../src/lib/tab-events'
 import {
   ensureContentScript,
+  ensureWindowSwitcherCapture,
   sendToTabWithInjection,
 } from '../src/lib/content-messenger'
 import { createAutoGroupScheduler } from '../src/lib/auto-group-scheduler'
@@ -111,7 +112,8 @@ async function setWindowSwitcherMode(
   } else {
     windowSwitcherTabs.delete(windowId)
   }
-  await sendToTab(targetTabId, {
+  await ensureWindowSwitcherCapture(targetTabId)
+  await chrome.tabs.sendMessage(targetTabId, {
     type: 'CONTENT_WINDOW_SWITCHER_MODE',
     active,
   })
@@ -236,7 +238,12 @@ async function ensureContentScriptsOnOpenTabs(): Promise<void> {
   const tabs = await chrome.tabs.query({})
   await Promise.allSettled(
     tabs.flatMap((tab) =>
-      tab.id === undefined ? [] : [ensureContentScript(tab.id)],
+      tab.id === undefined
+        ? []
+        : [
+            ensureContentScript(tab.id),
+            ensureWindowSwitcherCapture(tab.id),
+          ],
     ),
   )
 }

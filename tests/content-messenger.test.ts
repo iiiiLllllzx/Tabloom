@@ -1,5 +1,6 @@
 import {
   ensureContentScript,
+  ensureWindowSwitcherCapture,
   isInjectableTabUrl,
   sendToTabWithInjection,
 } from '../src/lib/content-messenger'
@@ -52,6 +53,26 @@ describe('内容脚本消息兜底', () => {
     expect(executeScript).toHaveBeenCalledWith({
       target: { tabId: 7 },
       files: ['content-scripts/content.js'],
+    })
+  })
+
+  it('向普通页面的所有 frame 注入窗口切换键盘捕获', async () => {
+    const executeScript = vi.fn().mockResolvedValue([])
+    vi.stubGlobal('chrome', {
+      tabs: {
+        get: vi.fn().mockResolvedValue({
+          id: 7,
+          url: 'https://ml.bytedance.net/webshell',
+        }),
+      },
+      scripting: { executeScript },
+    })
+
+    await ensureWindowSwitcherCapture(7)
+
+    expect(executeScript).toHaveBeenCalledWith({
+      target: { tabId: 7, allFrames: true },
+      files: ['content-scripts/window-switcher-capture.js'],
     })
   })
 
